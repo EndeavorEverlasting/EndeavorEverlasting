@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="title desc">
   <title id="title">EndeavorEverlasting — Threading complexity into stability</title>
-  <desc id="desc">Editorial dark brand banner featuring geometric flow paths, a coral accent and the statement Threading complexity into stability.</desc>
+  <desc id="desc">Endeavor Everlasting: Threading Complexity Into Stability. Navy technical grid, hourglass emblem, coral supporting text and a needle threading teal and orange paths through a circular systems diagram.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111a24"/><stop offset="1" stop-color="#070d14"/></linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fd8065"/><stop offset="1" stop-color="#ffbd7c"/></linearGradient>
@@ -13,29 +13,42 @@
     <rect x="0" y="0" width="8" height="390" fill="url(#accent)"/>
     <path d="M 0 0 H 1200" stroke="#36485a" opacity=".5"/>
     <g font-family="Arial, Helvetica, sans-serif">
-      <rect x="54" y="40" width="32" height="32" rx="9" fill="#fe936c"/>
-      <path d="M 61 56 L 69 64 L 80 48" fill="none" stroke="#111a24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- An hourglass replaces the former checkmark: long-horizon durability. -->
+      <rect id="hourglass-badge" x="54" y="40" width="32" height="32" rx="9" fill="#fe936c"/>
+      <path d="M 65 47 H 75 M 65 65 H 75 M 66 47 C 66 53 74 53 74 56 C 74 59 66 59 66 65 M 74 47 C 74 53 66 53 66 56 C 66 59 74 59 74 65" fill="none" stroke="#101b25" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
       <text x="101" y="62" fill="#edf3f2" font-size="17" font-weight="700" letter-spacing="2.6">ENDEAVOR / EVERLASTING</text>
       <text x="56" y="127" fill="#9cabbc" font-size="13" font-weight="700" letter-spacing="4">IT OPERATIONS  /  AGENTIC WORKFLOWS  /  AUTOMATION</text>
-      <text x="52" y="208" fill="#f7faf7" font-size="56" font-weight="800" letter-spacing="-2.5">THREADING COMPLEXITY</text>
-      <text x="52" y="305" fill="url(#accent)" font-size="76" font-weight="800" letter-spacing="-2.9">INTO STABILITY</text>
-      <path d="M 56 334 H 620" stroke="#465467" stroke-width="1"/>
-      <text x="56" y="368" fill="#edf3f2" font-size="20" font-weight="700" letter-spacing=".15">Turning everyday friction into durable systems.</text>
+      <text x="52" y="208" fill="#f7faf7" font-size="56" font-weight="800" letter-spacing="-2.6">THREADING COMPLEXITY</text>
+      <text x="52" y="279" fill="url(#accent)" font-size="76" font-weight="800" letter-spacing="-2.9">INTO STABILITY</text>
+      <path d="M 56 312 H 697" stroke="#465467" stroke-width="1"/>
+      <text x="56" y="345" fill="#edf3f2" font-size="19" font-weight="700" letter-spacing=".15">Turning everyday friction into durable systems.</text>
       <text x="1128" y="354" fill="#94a9bb" text-anchor="end" font-size="11" font-weight="700" letter-spacing="2">BUILD  /  TEST  /  PROVE</text>
     </g>
-    <g transform="translate(785 195)">
-      <circle r="146" fill="#162737" opacity=".40"/>
-      <circle r="119" fill="none" stroke="#496278" stroke-width="1" stroke-dasharray="4 10" opacity=".6"/>
-      <circle r="91" fill="none" stroke="#486072" stroke-width="1"/>
-      <path d="M -415 -45 H -42 L -24 -39 H 39 L 69 -70 H 130" fill="none" stroke="#8cd8cf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M -415 34 H -41 L -23 27 H 39 L 68 62 H 119" fill="none" stroke="#ff9b77" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M -5 -114 V -61 L 30 -26 L 30 22" fill="none" stroke="#a1b0ca" stroke-width="3" stroke-dasharray="6 9" stroke-linecap="round"/>
-      <circle cx="-415" cy="-45" r="10" fill="#8cd8cf"/>
-      <circle cx="130" cy="-70" r="10" fill="#8cd8cf"/>
-      <circle cx="-415" cy="34" r="10" fill="#ff9b77"/>
-      <circle cx="119" cy="62" r="10" fill="#ff9b77"/>
-      <rect x="-28" y="-27" width="56" height="56" rx="14" fill="#f6f9f7"/>
-      <path d="M -13 2 L -2 13 L 16 -10" fill="none" stroke="#0b1520" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Responsive layout contract: content renders proportionally inside a 1200 x 390
+         viewBox. Headline occupies x=52..795; no opaque line or node intersects it.
+         The right hub occupies x=766..1076 and follows the original dark navy HUD. -->
+    <g id="flow-diagram">
+      <circle cx="920" cy="191" r="151" fill="#15283a" opacity=".72"/>
+      <circle cx="920" cy="191" r="125" fill="none" stroke="#53728a" stroke-width=".8" stroke-dasharray="4 11" opacity=".72"/>
+      <circle cx="920" cy="191" r="97" fill="none" stroke="#53728a" stroke-width=".9" opacity=".65"/>
+      <path d="M 920 78 V 138 L 940 159" stroke="#9eb3cd" stroke-width="2.7" stroke-dasharray="6 9" fill="none" stroke-linecap="round"/>
+      <g fill="none" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+        <path id="upper-thread" d="M 811 151 H 856 L 878 176 H 964 L 992 145 H 1058" stroke="#85e8dc"/>
+        <path id="lower-thread" d="M 810 244 H 858 L 883 217 H 955 L 997 252 H 1052" stroke="#ff9978"/>
+      </g>
+      <g>
+        <circle cx="811" cy="151" r="9" fill="#85e8dc"/>
+        <circle cx="1058" cy="145" r="9" fill="#85e8dc"/>
+        <circle cx="810" cy="244" r="9" fill="#ff9978"/>
+        <circle cx="1052" cy="252" r="9" fill="#ff9978"/>
+      </g>
+      <!-- Needle: thread through a precise eye rather than a generic checkmark. -->
+      <g id="needle-hub">
+        <rect x="895" y="164" width="58" height="58" rx="15" fill="#f7f9f7"/>
+        <path d="M 911 211 L 935 178" fill="none" stroke="#0b1726" stroke-width="4.5" stroke-linecap="round"/>
+        <ellipse cx="937" cy="178" rx="2.6" ry="5.4" transform="rotate(33 937 178)" fill="none" stroke="#0b1726" stroke-width="2"/>
+        <path d="M 931 184 C 944 180 949 187 948 195 C 947 203 959 203 966 201" fill="none" stroke="#fa886d" stroke-width="2.7" stroke-linecap="round"/>
+      </g>
     </g>
     <path d="M 1158 32 h-26 M 1158 32 v26 M 1132 358 h26 M 1158 358 v-26" fill="none" stroke="#829ab0" opacity=".7"/>
   </g>
