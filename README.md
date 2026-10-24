@@ -1,6 +1,6 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <p align="center">
-  <img src="assets/hero.svg" width="1200" alt="EndeavorEverlasting — Make complexity repeatable. IT operations, agentic workflows, and automation." />
+  <img src="assets/hero.svg" width="1200" alt="EndeavorEverlasting — Threading complexity into stability. IT operations, agentic workflows, and automation." />
 </p>
 
 ### I build the systems behind better work.
