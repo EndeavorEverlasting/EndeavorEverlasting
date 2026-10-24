@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
-  <title id="title">EndeavorEverlasting — Make complexity repeatable</title>
-  <desc id="desc">Editorial dark brand banner featuring geometric flow paths, a coral accent and the statement Make complexity repeatable.</desc>
+  <title id="title">EndeavorEverlasting — Threading complexity into stability</title>
+  <desc id="desc">Editorial dark brand banner featuring geometric flow paths, a coral accent and the statement Threading complexity into stability.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111a24"/><stop offset="1" stop-color="#070d14"/></linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fd8065"/><stop offset="1" stop-color="#ffbd7c"/></linearGradient>
@@ -17,10 +17,10 @@
       <path d="M 61 56 L 69 64 L 80 48" fill="none" stroke="#111a24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <text x="101" y="62" fill="#edf3f2" font-size="17" font-weight="700" letter-spacing="2.6">ENDEAVOR / EVERLASTING</text>
       <text x="56" y="127" fill="#9cabbc" font-size="13" font-weight="700" letter-spacing="4">IT OPERATIONS  /  AGENTIC WORKFLOWS  /  AUTOMATION</text>
-      <text x="52" y="208" fill="#f7faf7" font-size="67" font-weight="800" letter-spacing="-2.7">MAKE COMPLEXITY</text>
-      <text x="52" y="285" fill="url(#accent)" font-size="72" font-weight="800" letter-spacing="-2.9">REPEATABLE.</text>
+      <text x="52" y="208" fill="#f7faf7" font-size="56" font-weight="800" letter-spacing="-2.5">THREADING COMPLEXITY</text>
+      <text x="52" y="285" fill="url(#accent)" font-size="76" font-weight="800" letter-spacing="-2.9">INTO STABILITY</text>
       <path d="M 56 316 H 620" stroke="#465467" stroke-width="1"/>
-      <text x="56" y="349" fill="#d3dce4" font-size="18" letter-spacing=".15">Turning everyday friction into systems that hold up.</text>
+      <text x="56" y="349" fill="#edf3f2" font-size="20" font-weight="700" letter-spacing=".15">Turning everyday friction into durable systems.</text>
       <text x="1128" y="354" fill="#94a9bb" text-anchor="end" font-size="11" font-weight="700" letter-spacing="2">BUILD  /  TEST  /  PROVE</text>
     </g>
     <g transform="translate(866 195)">
