@@ -1,6 +1,6 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <p align="center">
-  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting — Threading complexity into stability. IT operations, agentic workflows, and automation." />
+  <img src="https://raw.githubusercontent.com/EndeavorEverlasting/EndeavorEverlasting/main/assets/hero.svg?v=5ab395133d1e477c" width="100%" alt="EndeavorEverlasting — Threading complexity into stability. IT operations, agentic workflows, and automation." />
 </p>
 
 ### I build the systems behind better work.
