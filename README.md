@@ -9,7 +9,7 @@ I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **
 
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
 
-**Explore:** [IT tooling](https://github.com/EndeavorEverlasting/SysAdminSuite) · [Agent workflows](https://github.com/EndeavorEverlasting/Automation) · [All public projects](https://github.com/EndeavorEverlasting?tab=repositories)
+**Explore:** [IT tooling](https://github.com/EndeavorEverlasting/SysAdminSuite) · [Reusable automation](https://github.com/EndeavorEverlasting/Automation) · [All public projects](https://github.com/EndeavorEverlasting?tab=repositories)
 
 ---
 
