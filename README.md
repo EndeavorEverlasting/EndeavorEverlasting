@@ -1,17 +1,25 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
-<p align="center">
-  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting — Threading complexity into stability. IT operations, agentic workflows, and automation." />
-</p>
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-opening.png" />
+  <img src="assets/stitch-opening.gif" width="100%" alt="Four copper and teal threads converge at an hourglass inside a golden spiral." />
+</picture>
+
+# Threading complexity into stability
+
+Turning everyday friction into durable systems.
 
 ### I build the systems behind better work.
 
 I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **IT operations, automation, and agent-assisted development** — turning messy, manual processes into repeatable workflows with clear ownership and verifiable results.
 
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-continuation.png" />
+  <img src="assets/stitch-continuation.gif" width="100%" alt="The four stitched threads carry through the hourglass and separate into clear connections." />
+</picture>
+
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
 
 **Explore:** [IT tooling](https://github.com/EndeavorEverlasting/SysAdminSuite) · [Agent workflows](https://github.com/EndeavorEverlasting/Automation) · [All public projects](https://github.com/EndeavorEverlasting?tab=repositories)
-
-<img src="assets/first-stitch.gif" width="100%" alt="Copper and cyan threads converge through a Fibonacci spiral and settle into four lit connections." />
 
 ### Selected work
 
