@@ -4,21 +4,21 @@ on:
   push:
     branches: [main]
     paths:
-      - "assets/hero.svg"
-      - "assets/first-stitch.gif"
+      - "assets/**"
       - "README.md"
       - "scripts/verify_profile_banner.py"
       - "scripts/verify_profile_visuals.py"
       - "scripts/test_profile_visuals.py"
+      - "scripts/render_profile_motion.py"
       - ".github/workflows/profile-banner.yml"
   pull_request:
     paths:
-      - "assets/hero.svg"
-      - "assets/first-stitch.gif"
+      - "assets/**"
       - "README.md"
       - "scripts/verify_profile_banner.py"
       - "scripts/verify_profile_visuals.py"
       - "scripts/test_profile_visuals.py"
+      - "scripts/render_profile_motion.py"
       - ".github/workflows/profile-banner.yml"
   workflow_dispatch:
 

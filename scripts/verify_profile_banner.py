@@ -27,10 +27,9 @@ for label in ("THREADING COMPLEXITY", "INTO STABILITY", "Turning everyday fricti
     assert_true(texts.count(label) == 1, f"Headline/subhead missing or duplicated: {label}")
 assert_true("Make complexity repeatable" not in svg and "hold up" not in svg, "Stale brand wording")
 
-# GitHub README panels are often narrower than the intrinsic artwork. Responsive
-# width and the fixed viewBox preserve a 40:13 layout at, e.g., 760x247 or 600x195.
-assert_true('src="assets/hero.svg"' in readme, "README no longer uses the authored SVG")
-assert_true('width="100%"' in readme, "README image must occupy available width responsively")
+# Profile copy reflows as text, independently of the archived banner artwork.
+assert_true("# Threading complexity into stability" in readme, "Profile headline must be readable text")
+assert_true("Turning everyday friction into durable systems." in readme, "Profile subhead is missing")
 assert_true("AgentSwitchboard" not in readme, "Retired project is still promoted")
 
 # Opaque teal and coral branch strokes start in the right-hand diagram zone.
@@ -40,4 +39,4 @@ for name in ("upper-thread", "lower-thread"):
     move = re.search(r"^M\s*([0-9.]+)\s+([0-9.]+)", path.attrib.get("d", "")) if path is not None else None
     assert_true(move is not None and float(move.group(1)) >= 800, f"{name} crosses protected copy zone")
 
-print("PASS: profile banner viewBox, responsive embed, icons, wording, and branch-zone guards")
+print("PASS: profile banner viewBox, icons, profile wording, and branch-zone guards")
