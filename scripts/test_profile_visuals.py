@@ -3,6 +3,9 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
+from render_profile_motion import (
+    CONTINUATION as CONTINUATION_CURVES, OPENING as OPENING_CURVES, verify_thread_direction,
+)
 from verify_profile_visuals import (
     ASSETS, CONTINUATION, MILESTONES, OPENING, PROFILE, REDUCED_MOTION, REPO,
     ProfileCheckError, check_artwork, checked_images, gif_timing, verify_public,
@@ -73,7 +76,7 @@ class ProfileVisualTests(unittest.TestCase):
 
     def test_public_reduced_motion_requires_matching_still(self):
         for broken in (self.continuation.replace(REDUCED_MOTION, "(max-width: 600px)"),
-                       self.continuation.replace("stitch-continuation.png", "stitch-opening.png")):
+                       self.continuation.replace("stitch-resume.png", "stitch-descent.png")):
             with self.subTest(image=broken), self.assertRaises(ProfileCheckError):
                 checked_images(self.live.replace(self.continuation, broken), live=True)
 
@@ -100,6 +103,16 @@ class ProfileVisualTests(unittest.TestCase):
         wrong_still = self.assets[CONTINUATION.replace(".gif", ".png")]
         with self.assertRaisesRegex(ProfileCheckError, "same dimensions"):
             check_artwork({**self.assets, opening_still: wrong_still})
+
+    def test_threads_descend_and_match_across_the_copy(self):
+        verify_thread_direction(OPENING_CURVES, CONTINUATION_CURVES)
+        opening_sideways = (((10, 90), (40, 90, 60, 90, 100, 90)), *OPENING_CURVES[1:])
+        with self.assertRaisesRegex(ValueError, "top to the bottom"):
+            verify_thread_direction(opening_sideways, CONTINUATION_CURVES)
+        start, *remaining = CONTINUATION_CURVES[0]
+        shifted = (((start[0] + 10, start[1]), *remaining), *CONTINUATION_CURVES[1:])
+        with self.assertRaisesRegex(ValueError, "endpoints must align"):
+            verify_thread_direction(OPENING_CURVES, shifted)
 
     def test_bad_motion_bytes(self):
         gif = self.assets[OPENING]
