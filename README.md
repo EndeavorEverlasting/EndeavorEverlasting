@@ -11,7 +11,7 @@ I care about what happens *after* a promising prototype: whether someone else ca
 
 **Explore:** [IT tooling](https://github.com/EndeavorEverlasting/SysAdminSuite) · [Agent workflows](https://github.com/EndeavorEverlasting/Automation) · [All public projects](https://github.com/EndeavorEverlasting?tab=repositories)
 
----
+<img src="assets/first-stitch.gif" width="100%" alt="Copper and cyan threads converge through a Fibonacci spiral and settle into four lit connections." />
 
 ### Selected work
 
