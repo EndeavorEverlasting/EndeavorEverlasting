@@ -3,8 +3,6 @@
 from math import cos, pi, sin
 from pathlib import Path
 
-from PIL import Image, ImageDraw
-
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 WIDTH = 640
 TEAL = "#319c9e"
@@ -13,22 +11,35 @@ TEAL_LIGHT = "#7cdbcf"
 COPPER_LIGHT = "#ffb080"
 ETCH = "#5b788b"
 ETCH_FAINT = "#405865"
-FRAMES = 48
+FRAMES = 42
 
-# Consecutive cubic Béziers share an endpoint. The four exits of the opening
-# illustration line up vertically with the four entrances of the interlude.
+# The horizontal positions of the four exits match the four entrances below
+# the copy. Each alternating-color strand travels from the top edge downward.
+HANDOFF = (287, 306, 334, 353)
+OPENING_HEIGHT = 260
+CONTINUATION_HEIGHT = 200
 OPENING = (
-    ((16, 36), (140, 32, 170, 50, 242, 87), (292, 114, 350, 105, 417, 87), (495, 65, 562, 82, 624, 82)),
-    ((28, 76), (130, 72, 182, 116, 252, 116), (293, 116, 342, 86, 411, 94), (487, 103, 552, 97, 624, 97)),
-    ((28, 144), (130, 148, 182, 104, 252, 104), (293, 104, 342, 134, 411, 126), (487, 117, 552, 123, 624, 123)),
-    ((16, 184), (140, 188, 170, 170, 242, 133), (292, 106, 350, 115, 417, 133), (495, 155, 562, 138, 624, 138)),
+    ((162, 14), (164, 60, 243, 74, 264, 106), (275, 122, 288, 132, 294, 159), (295, 190, 287, 211, HANDOFF[0], 246)),
+    ((250, 14), (248, 63, 281, 87, 304, 111), (329, 130, 319, 146, 305, 170), (299, 198, 306, 215, HANDOFF[1], 246)),
+    ((390, 14), (392, 63, 359, 87, 336, 111), (311, 130, 321, 146, 335, 170), (341, 198, 334, 215, HANDOFF[2], 246)),
+    ((478, 14), (476, 60, 397, 74, 376, 106), (365, 122, 352, 132, 346, 159), (345, 190, 353, 211, HANDOFF[3], 246)),
 )
 CONTINUATION = (
-    ((16, 56), (108, 56, 153, 56, 218, 69), (273, 79, 358, 72, 420, 48), (487, 21, 551, 24, 624, 24)),
-    ((16, 71), (108, 71, 170, 76, 219, 82), (278, 88, 344, 88, 426, 72), (503, 57, 549, 57, 604, 57)),
-    ((16, 97), (108, 97, 170, 92, 219, 86), (278, 80, 344, 80, 426, 96), (503, 111, 549, 111, 604, 111)),
-    ((16, 112), (108, 112, 153, 112, 218, 99), (273, 89, 358, 96, 420, 120), (487, 147, 551, 144, 624, 144)),
+    ((HANDOFF[0], 14), (287, 34, 295, 66, 284, 95), (266, 118, 240, 123, 217, 145), (201, 164, 200, 172, 200, 186)),
+    ((HANDOFF[1], 14), (306, 40, 314, 59, 316, 83), (320, 107, 315, 119, 300, 142), (285, 158, 275, 165, 275, 186)),
+    ((HANDOFF[2], 14), (334, 40, 326, 59, 324, 83), (320, 107, 325, 119, 340, 142), (355, 158, 365, 165, 365, 186)),
+    ((HANDOFF[3], 14), (353, 34, 345, 66, 356, 95), (374, 118, 400, 123, 423, 145), (439, 164, 440, 172, 440, 186)),
 )
+
+
+def verify_thread_direction(opening, continuation):
+    for height, shape in ((OPENING_HEIGHT, opening), (CONTINUATION_HEIGHT, continuation)):
+        for start, *segments in shape:
+            vertical = [start[1], *(point for segment in segments for point in segment[1::2])]
+            if vertical != sorted(vertical) or vertical[0] > 16 or vertical[-1] < height - 16:
+                raise ValueError("Each profile thread must run from the top to the bottom.")
+    if tuple(curve[-1][-2] for curve in opening) != tuple(curve[0][0] for curve in continuation):
+        raise ValueError("Opening and continuation thread endpoints must align across the copy.")
 
 
 def curve_points(curve):
@@ -66,19 +77,21 @@ def opening_engraving(draw, center):
 
 
 def render_frame(height, curves, frame, opening):
+    from PIL import Image, ImageDraw
+
     image = Image.new("RGBA", (WIDTH, height))
     draw = ImageDraw.Draw(image)
     y = height // 2
     center = (320, y)
     phase = frame / (FRAMES - 1)
-    for offset in range(52, 600, 20):
-        if abs(offset - 320) > 46:
-            draw.line(((offset, y - 2), (offset, y + 2)), fill=ETCH_FAINT, width=1)
+    for offset in range(24, height - 20, 13):
+        if abs(offset - y) > 32:
+            draw.line(((317, offset), (323, offset)), fill=ETCH_FAINT, width=1)
     if opening:
         opening_engraving(draw, center)
 
     for index, points in enumerate(curves):
-        color, light = (TEAL, TEAL_LIGHT) if index < 2 else (COPPER, COPPER_LIGHT)
+        color, light = (TEAL, TEAL_LIGHT) if index % 2 == 0 else (COPPER, COPPER_LIGHT)
         draw.line(points, fill=color, width=4)
         travel = phase * 1.38 - 0.11 * (index % 2) - (0 if opening else 0.22)
         head = round(travel * (len(points) - 1))
@@ -111,7 +124,7 @@ def render_frame(height, curves, frame, opening):
 def render(name, height, shape, *, opening):
     curves = [curve_points(curve) for curve in shape]
     frames = [render_frame(height, curves, frame, opening) for frame in range(FRAMES)]
-    durations = [70] * FRAMES
+    durations = [80] * FRAMES
     durations[0] = 140
     durations[-1] = 360
     frames[0].save(ASSETS / f"{name}.gif", save_all=True, append_images=frames[1:],
@@ -120,5 +133,6 @@ def render(name, height, shape, *, opening):
 
 
 if __name__ == "__main__":
-    render("stitch-opening", 220, OPENING, opening=True)
-    render("stitch-continuation", 168, CONTINUATION, opening=False)
+    verify_thread_direction(OPENING, CONTINUATION)
+    render("stitch-descent", OPENING_HEIGHT, OPENING, opening=True)
+    render("stitch-resume", CONTINUATION_HEIGHT, CONTINUATION, opening=False)

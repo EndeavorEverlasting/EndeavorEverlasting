@@ -13,9 +13,9 @@ from urllib.request import Request, urlopen
 
 PROFILE = "https://github.com/EndeavorEverlasting"
 REPO = "EndeavorEverlasting/EndeavorEverlasting"
-OPENING = "assets/stitch-opening.gif"
-CONTINUATION = "assets/stitch-continuation.gif"
-MOTION = {OPENING: 0.33, CONTINUATION: 0.25}
+OPENING = "assets/stitch-descent.gif"
+CONTINUATION = "assets/stitch-resume.gif"
+MOTION = {OPENING: 0.39, CONTINUATION: 0.30}
 ASSETS = tuple(path for gif in MOTION for path in (gif, gif.removesuffix(".gif") + ".png"))
 MILESTONES = (
     "Threading complexity into stability",

@@ -1,7 +1,7 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-opening.png" />
-  <img src="assets/stitch-opening.gif" width="100%" alt="Four copper and teal threads converge at an hourglass inside a golden spiral." />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-descent.png" />
+  <img src="assets/stitch-descent.gif" width="100%" alt="Copper and teal threads descend through an hourglass inside a golden spiral." />
 </picture>
 
 # Threading complexity into stability
@@ -13,8 +13,8 @@ Turning everyday friction into durable systems.
 I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **IT operations, automation, and agent-assisted development** — turning messy, manual processes into repeatable workflows with clear ownership and verifiable results.
 
 <picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-continuation.png" />
-  <img src="assets/stitch-continuation.gif" width="100%" alt="The four stitched threads carry through the hourglass and separate into clear connections." />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-resume.png" />
+  <img src="assets/stitch-resume.gif" width="100%" alt="The same four threads continue downward and open into separate connections." />
 </picture>
 
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
