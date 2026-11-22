@@ -1,11 +1,11 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <p align="center">
-  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral handoffs stitch into a repeatable workflow and feed a violet star field." />
+  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral handoffs stitch into a repeatable workflow and feed a blue and teal star field." />
 </p>
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-descent.png" />
-  <img src="assets/stitch-descent.gif" width="100%" alt="Light travels downward through violet filaments, gathering into bright clusters along the way." />
+  <img src="assets/stitch-descent.gif" width="100%" alt="Light travels downward through blue and teal filaments, gathering into bright clusters along the way." />
 </picture>
 
 # Threading complexity into stability
@@ -46,5 +46,5 @@ I care about what happens *after* a promising prototype: whether someone else ca
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-pulse.png" />
-  <img src="assets/stitch-pulse.gif" width="100%" alt="At the end of the cosmic web, a luminous cluster brightens and dims gently." />
+  <img src="assets/stitch-pulse.gif" width="100%" alt="At the end of the cosmic web, soft pulses branch downward toward the pinned projects." />
 </picture>

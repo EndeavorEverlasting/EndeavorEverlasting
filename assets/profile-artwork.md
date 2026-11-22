@@ -1,15 +1,17 @@
 # Profile artwork
 
 The banner introduces fragmented handoffs, the needle and a repeatable workflow.
-Its lower-right output dissolves into the opener's violet field. The first GIF
+Its lower-right output dissolves into the opener's blue and teal field. The first GIF
 carries a cyan-white signal down through clusters toward the introduction.
 The second resumes the same field beneath the copy and leads into the
-remaining sections. The final GIF collects light in a breathing cluster,
-carrying the banner's theme of long-horizon durability to the bottom of the page.
+remaining sections. In the final GIF, the same light divides into two soft
+pulses that travel down and outward. The fading tips sit near the centers of
+the two Pinned columns on desktop. On a phone they frame the top of the
+stacked cards.
 
 The cosmic web is one deterministic density field sliced at the two text breaks.
-Neighboring clouds connect through granular violet filaments, cool luminous
-knots and sparse warmer points. Dark voids provide scale and separate the
+Neighboring clouds connect through granular blue and teal filaments, ice-blue knots and sparse coral highlights.
+The coral and teal echo the banner’s handoff diagram. Dark voids provide scale and separate the
 layers. Keep individual paths buried in the density and let bright regions
 emerge where clouds meet. Exposed wireframes, concentric rings, metallic tubes,
 claws and repeated root silhouettes fail visual review. Fibonacci proportions
@@ -33,7 +35,7 @@ Inspect each encoded GIF and its PNG still at desktop width and at 255 px.
 Check that the banner output meets the projected opening field. Keep a visible
 anchor at each text break and fade the surrounding light at the image edges.
 The validator checks the sequence, detached or misplaced panels, repeat
-metadata, downward signal, footer pulse and matching reduced-motion stills.
+metadata, downward signal, two independently descending footer pulses and matching reduced-motion stills.
 The pixel checks also look for broad midtone density, deep voids and luminous
 cores, rejecting sparse line-art silhouettes and undifferentiated fog. Retain
 the qualitative visual review for organic shape and a sense of depth.
@@ -62,7 +64,7 @@ and inspect the four images on the public GitHub profile.
 
 ## Browse and restore profile versions
 
-The [profile release archive](profile-releases/) holds seven initial snapshots.
+The [profile release archive](profile-releases/) holds the published snapshots.
 Each folder renders the README and artwork as they appeared in that version.
 The catalog records the original commit and checksums for its archived files.
 
@@ -75,6 +77,7 @@ The catalog records the original commit and checksums for its archived files.
 | [v05](profile-releases/v05/) | Layered dendritic artwork |
 | [v06](profile-releases/v06/) | Looping Fibonacci panels |
 | [v07](profile-releases/v07/) | Continuous cosmic web |
+| [v08](profile-releases/v08/) | Teal and coral cosmic web with a handoff to Pinned |
 
 Create a branch from current main. The first restore command prints a patch.
 The second applies it to your checkout. It changes the media blocks and the
@@ -91,7 +94,7 @@ git diff
 ```
 
 Commit the two-file patch and merge through the normal PR workflow after the
-checks are green. To return to the cosmic web, repeat the steps with `v07`.
+checks are green. To return to the latest expression, repeat the steps with `v08`.
 If a rollback needs a text break whose anchor was edited out, restore the
 supported section anchor in a separate editorial change. Saved working edits to
 the README or catalog must be committed or stashed before applying rollback.
@@ -102,7 +105,7 @@ ID if you choose an existing or out-of-sequence one. Include the archive folder,
 catalog and approved artwork in the PR.
 
 ```sh
-python scripts/profile_release.py capture v08 --title "Your new expression"
+python scripts/profile_release.py capture v09 --title "Your new expression"
 python scripts/profile_release.py check
 ```
 

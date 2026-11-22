@@ -27,15 +27,15 @@
       <rect x="803" y="95" width="192" height="22" fill="url(#spiral-caption-fade)"/>
     </mask>
     <radialGradient id="handoff-cloud">
-      <stop offset="0" stop-color="#a5cafa" stop-opacity=".74"/>
-      <stop offset=".24" stop-color="#7664d0" stop-opacity=".38"/>
-      <stop offset=".62" stop-color="#9a497d" stop-opacity=".18"/>
-      <stop offset="1" stop-color="#322543" stop-opacity="0"/>
+      <stop offset="0" stop-color="#abdedf" stop-opacity=".74"/>
+      <stop offset=".24" stop-color="#4e92ad" stop-opacity=".38"/>
+      <stop offset=".62" stop-color="#37597d" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#15283a" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="handoff-light" x1="1087" y1="249" x2="958" y2="390" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ff9978" stop-opacity=".22"/>
-      <stop offset=".4" stop-color="#aa77cc" stop-opacity=".35"/>
-      <stop offset="1" stop-color="#afcaff" stop-opacity=".56"/>
+      <stop offset=".4" stop-color="#6ab9c0" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#b2f7ec" stop-opacity=".56"/>
     </linearGradient>
     <filter id="handoff-diffusion" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="5"/>
@@ -52,7 +52,7 @@
       <ellipse cx="1031" cy="315" rx="34" ry="13" fill="url(#handoff-cloud)" transform="rotate(-24 1031 315)"/>
       <ellipse cx="989" cy="352" rx="33" ry="19" fill="url(#handoff-cloud)" transform="rotate(-39 989 352)"/>
       <ellipse cx="958" cy="389" rx="54" ry="26" fill="url(#handoff-cloud)"/>
-      <g fill="#b3bbef" opacity=".55">
+      <g fill="#b5dddf" opacity=".55">
         <circle cx="1036" cy="309" r="1.6"/><circle cx="1011" cy="326" r="1.2"/>
         <circle cx="993" cy="346" r="1.7"/><circle cx="981" cy="367" r="1"/>
         <circle cx="969" cy="372" r="1.85"/><circle cx="951" cy="384" r="1.25"/>
