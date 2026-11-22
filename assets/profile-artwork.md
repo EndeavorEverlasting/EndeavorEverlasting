@@ -24,6 +24,13 @@ govern the density scales, phase period and cadence. The first two scenes use
 and alternates the two paths in one 2.72-second loop. The banner retains its
 Fibonacci spiral.
 
+## Use the portable workflow
+
+Use the [portable profile artwork capability](https://github.com/EndeavorEverlasting/Automation/blob/main/capabilities/profile-artwork/CAPABILITY.md)
+to generate fresh artwork for a new GitHub profile or roll back artwork while
+preserving the current README Markdown prose. For EndeavorEverlasting, import
+the exact v11 GIFs and PNG stills from the [v11 assets](profile-releases/v11/assets/).
+
 ## Regenerate and review
 
 The renderer uses NumPy, SciPy and Pillow. The current assets used NumPy 2.3.5,
