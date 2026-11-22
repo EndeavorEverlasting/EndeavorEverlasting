@@ -1,6 +1,7 @@
 """Regression cases for the pre-commit and CI profile scope gate."""
 import unittest
 
+from verify_profile_scope import LEGACY_NEXUS, NEXUS_ALT, REPOSITORIES_URL
 from verify_profile_scope import ProfileScopeError, verify_changes
 
 
@@ -32,3 +33,22 @@ class ProfileScopeTests(unittest.TestCase):
     def test_protects_the_readme(self):
         with self.assertRaisesRegex(ProfileScopeError, "remain present"):
             verify_changes({"README.md"}, "# About", "")
+
+    def test_only_the_exact_legacy_invitation_can_move_into_reviewed_art(self):
+        before = f"# About\n\nUnrelated copy.\n\n{LEGACY_NEXUS}\n"
+        block = f'''<a href="{REPOSITORIES_URL}">
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-pulse.png" />
+  <img src="assets/stitch-pulse.gif" width="100%" alt="{NEXUS_ALT}" />
+</picture>
+</a>
+'''
+        after = "# About\n\nUnrelated copy.\n\n" + block
+        paths = {"README.md", "assets/stitch-pulse.gif"}
+        verify_changes(paths, before, after)
+        for wrong in (after.replace(REPOSITORIES_URL, "https://example.com"),
+                      after.replace(NEXUS_ALT, "Explore."),
+                      after.replace("Unrelated copy.", "Edited copy."),
+                      after.replace("Unrelated copy.\n\n" + block, block + "\nUnrelated copy.\n")):
+            with self.subTest(wrong=wrong), self.assertRaisesRegex(ProfileScopeError, "approved media"):
+                verify_changes(paths, before, wrong)

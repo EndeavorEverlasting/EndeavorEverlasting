@@ -23,8 +23,18 @@ MEDIA_FILENAME = r"(?:hero\.svg|first-stitch\.gif|stitch-(?:opening|continuation
 RELEASE_ID = r"v[0-9]{2,}"
 ARCHIVE_PATH = re.compile(rf"assets/profile-releases/{RELEASE_ID}/(?:README\.md|assets/{MEDIA_FILENAME})")
 MEDIA_PREFIX = rf"assets/(?:profile-releases/{RELEASE_ID}/assets/)?"
+REPOSITORIES_URL = "https://github.com/EndeavorEverlasting?tab=repositories"
+NEXUS_ALT = ("Explore the projects. Build with me. Browse the public repositories, "
+             "or open an issue or pull request in a project to collaborate.")
+NEXUS_BLOCK = (
+    rf'^<a href="{re.escape(REPOSITORIES_URL)}">\n<picture>\n'
+    rf'  <source media="\(prefers-reduced-motion: reduce\)" srcset="{MEDIA_PREFIX}stitch-pulse\.png" />\n'
+    rf'  <img src="{MEDIA_PREFIX}stitch-pulse\.gif" width="100%" alt="{re.escape(NEXUS_ALT)}" />\n'
+    r'</picture>\n</a>[ \t]*$'
+)
+NEXUS_MEDIA = re.compile(NEXUS_BLOCK, re.MULTILINE)
 PROFILE_MEDIA = re.compile(
-    rf'(?m)^<picture>[ \t]*\n[ \t]*<source\b[^>\n]*>\n[ \t]*'
+    rf'(?m){NEXUS_BLOCK}|^<picture>[ \t]*\n[ \t]*<source\b[^>\n]*>\n[ \t]*'
     rf'<img\s+src="{MEDIA_PREFIX}{MEDIA_FILENAME}"[^>\n]*>\n</picture>[ \t]*$'
     rf'|^<p align="center">[ \t]*\n[ \t]*'
     rf'<img\s+src="{MEDIA_PREFIX}hero\.svg"[^>\n]*>\n</p>[ \t]*$'
@@ -32,11 +42,13 @@ PROFILE_MEDIA = re.compile(
 )
 
 
-REPOSITORIES_URL = "https://github.com/EndeavorEverlasting?tab=repositories"
 FOOTER_INVITATION = re.compile(
     rf'(?m)^<p><strong>[^<\n]+</strong>[^<\n]+'
     rf'<a href="{re.escape(REPOSITORIES_URL)}">[^<\n]+</a></p>[ \t]*\s*\Z'
 )
+LEGACY_NEXUS = ('<p><strong>Explore the project nexus.</strong> Your next tool may be among '
+                'the pinned projects below. '
+                f'<a href="{REPOSITORIES_URL}">Browse all repositories →</a></p>')
 
 
 class ProfileScopeError(ValueError):
@@ -59,9 +71,14 @@ def verify_changes(paths, prior_readme=None, candidate_readme=None):
         raise ProfileScopeError("The base README is required for scope comparison.")
     if "README.md" in paths and not candidate_readme:
         raise ProfileScopeError("The public README must remain present.")
-    if (artwork and "README.md" in paths and
-            readme_copy(prior_readme) != readme_copy(candidate_readme)):
-        raise ProfileScopeError("An artwork change may only edit the README's approved media markup.")
+    if artwork and "README.md" in paths:
+        footer = NEXUS_MEDIA.search(candidate_readme)
+        if (footer and not candidate_readme[footer.end():].strip()
+                and not NEXUS_MEDIA.search(prior_readme)
+                and prior_readme.rstrip().endswith(LEGACY_NEXUS)):
+            prior_readme = prior_readme.rstrip().removesuffix(LEGACY_NEXUS)
+        if readme_copy(prior_readme) != readme_copy(candidate_readme):
+            raise ProfileScopeError("An artwork change may only edit the README's approved media markup.")
 
 
 def git(*args):
