@@ -1,7 +1,11 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
+<p align="center">
+  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral branches show fragmented handoffs stitched into a repeatable workflow." />
+</p>
+
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-descent.png" />
-  <img src="assets/stitch-descent.gif" width="100%" alt="Copper and teal threads descend through an hourglass inside a golden spiral." />
+  <img src="assets/stitch-descent.gif" width="100%" alt="Copper and teal dendrites converge at a needle and hourglass before descending as four strands." />
 </picture>
 
 # Threading complexity into stability
@@ -14,7 +18,7 @@ I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-resume.png" />
-  <img src="assets/stitch-resume.gif" width="100%" alt="The same four threads continue downward and open into separate connections." />
+  <img src="assets/stitch-resume.gif" width="100%" alt="The four joined strands descend and branch into repeatable connections." />
 </picture>
 
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
@@ -39,3 +43,8 @@ I care about what happens *after* a promising prototype: whether someone else ca
 ---
 
 <sub>Building in public where practical. Some operational work stays private to protect people, systems, and organizations. <a href="https://github.com/EndeavorEverlasting?tab=repositories">Browse the work →</a></sub>
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-pulse.png" />
+  <img src="assets/stitch-pulse.gif" width="100%" alt="The hourglass and its surrounding ring pulse gently at the ends of the network." />
+</picture>

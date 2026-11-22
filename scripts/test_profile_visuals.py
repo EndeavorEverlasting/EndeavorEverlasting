@@ -1,17 +1,21 @@
 """Regression cases for the profile rollout verification."""
+from io import BytesIO
 import json
+from math import hypot, sqrt
 from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 from render_profile_motion import (
     CONTINUATION as CONTINUATION_CURVES, OPENING as OPENING_CURVES,
-    OPENING_HEIGHT, dendrites, verify_thread_direction,
+    PULSE as PULSE_CURVES, FIBONACCI, FRAME_MS, FRAMES, HANDOFF, OPENING_HEIGHT,
+    RING_RADII, SPIRAL_RADII, WIDTH, dendrites, fibonacci_spiral, verify_thread_direction,
 )
 from verify_profile_visuals import (
-    ARTWORK_REVIEW, ASSETS, CONTINUATION, MILESTONES, OPENING, PROFILE,
+    ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
-    ProfileCheckError, check_artwork, check_review, checked_images, gif_timing, verify_public,
+    ProfileCheckError, check_artwork, check_motion_pixels, check_review,
+    checked_images, gif_timing, verify_public,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,10 +29,13 @@ class ProfileVisualTests(unittest.TestCase):
         self.urls = {path: f"/{REPO}/raw/main/{path}" for path in ASSETS}
         self.opening = self.picture(OPENING)
         self.continuation = self.picture(CONTINUATION)
-        headline, first, second, work = MILESTONES
+        self.pulse = self.picture(PULSE)
+        self.banner = f'<img src="{self.urls[BANNER]}" width="100%" alt="{self.expected[BANNER][1]}">'
+        headline, first, second, work, ending = MILESTONES
         self.live = (
-            f'<article class="markdown-body">{self.opening}<h1>{headline}</h1>'
-            f'<p>{first}</p>{self.continuation}<p>{second}</p><h3>{work}</h3></article>'
+            f'<article class="markdown-body">{self.banner}{self.opening}<h1>{headline}</h1>'
+            f'<p>{first}</p>{self.continuation}<p>{second}</p><h3>{work}</h3>'
+            f'<sub>{ending}</sub>{self.pulse}</article>'
         )
 
     def picture(self, path):
@@ -40,6 +47,17 @@ class ProfileVisualTests(unittest.TestCase):
 
     def test_current_checkout(self):
         check_artwork(self.assets)
+        check_motion_pixels(self.assets)
+
+    def test_top_banner_and_bottom_pulse_are_bookends(self):
+        for bad_markup in (
+            self.live.replace(self.banner, ""),
+            self.live.replace(self.opening, "").replace(self.pulse, self.opening + self.pulse),
+            self.live.replace(self.pulse, "").replace(self.banner, self.banner + self.pulse),
+            self.live.replace("</article>", "<p>Stray copy</p></article>"),
+        ):
+            with self.subTest(markup=bad_markup), self.assertRaises(ProfileCheckError):
+                checked_images(bad_markup, live=True)
 
     def test_local_readme_missing_inert_or_narrow_gif(self):
         tag = next(line for line in self.readme.splitlines() if f'src="{CONTINUATION}"' in line)
@@ -130,6 +148,30 @@ class ProfileVisualTests(unittest.TestCase):
             self.assertTrue(any(branch.points[0] in parent.points
                                 for parent in branches if parent is not branch))
 
+    def test_fibonacci_geometry_and_cadence(self):
+        self.assertTrue(all(a + b == c for a, b, c in zip(FIBONACCI, FIBONACCI[1:], FIBONACCI[2:])))
+        self.assertEqual(RING_RADII, (21, 34, 55, 89, 144, 233))
+        self.assertEqual(HANDOFF, tuple(WIDTH//2 + x for x in (-55, -21, 21, 55)))
+        self.assertEqual((FRAME_MS, FRAMES), (130, 21))
+        spiral = fibonacci_spiral((0, 0), 0.42)
+        for index, radius in enumerate(SPIRAL_RADII):
+            start, end = spiral[index*64], spiral[(index+1)*64]
+            self.assertAlmostEqual(hypot(end[0]-start[0], end[1]-start[1]), sqrt(2)*radius)
+        self.assertEqual(tuple(route[-1][-2] for route in CONTINUATION_CURVES),
+                         tuple(route[0][0] for route in PULSE_CURVES))
+
+    def test_reverse_flow_fails_decoded_motion_check(self):
+        from PIL import Image, ImageSequence
+
+        with Image.open(BytesIO(self.assets[CONTINUATION])) as animation:
+            frames = [frame.convert("RGB") for frame in ImageSequence.Iterator(animation)]
+        frames.reverse()
+        reversed_gif = BytesIO()
+        frames[0].save(reversed_gif, format="GIF", save_all=True, append_images=frames[1:],
+                       duration=FRAME_MS, loop=0)
+        with self.assertRaisesRegex(ProfileCheckError, "traveling down"):
+            check_motion_pixels({**self.assets, CONTINUATION: reversed_gif.getvalue()})
+
     def test_review_protects_assets_and_renderer(self):
         review = json.loads((ROOT / ARTWORK_REVIEW).read_text(encoding="utf-8"))
         release = {**self.assets, RENDERER: (ROOT / RENDERER).read_bytes()}
@@ -143,7 +185,7 @@ class ProfileVisualTests(unittest.TestCase):
                 check_review(review, {**release, path: changed})
         notes = dict(review["observations"])
         notes.pop("no_sketch_edges")
-        with self.assertRaisesRegex(ProfileCheckError, "five visual observations"):
+        with self.assertRaisesRegex(ProfileCheckError, "every visual observation"):
             check_review({**review, "observations": notes}, release)
 
     def test_bad_motion_bytes(self):
@@ -155,10 +197,14 @@ class ProfileVisualTests(unittest.TestCase):
         )
         broken_lzw = still.replace(b"\x00\x02\x02\x44", b"\x00\xff\x02\x44")
         self.assertNotEqual(still, broken_lzw)
-        for content, message in ((still, "must animate"),
+        no_loop = gif.replace(loop, b"", 1)
+        finite = gif.replace(loop, loop[:-3] + b"\x02\x00\x00", 1)
+        for content, message in ((still, "uniform Fibonacci frame delay"),
                                  (broken_lzw, "invalid LZW"),
                                  (gif[:-1], "truncated"),
-                                 (gif[:start_of_blocks] + loop + gif[start_of_blocks:], "play once"),
+                                 (gif[:start_of_blocks] + loop + gif[start_of_blocks:], "exactly one loop"),
+                                 (no_loop, "repeat indefinitely"),
+                                 (finite, "repeat indefinitely"),
                                  (bytes(250_001), "250 kB budget")):
             with self.subTest(message=message), self.assertRaisesRegex(ProfileCheckError, message):
                 gif_timing(content)
