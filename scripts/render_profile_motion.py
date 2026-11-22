@@ -2,7 +2,7 @@
 """Render one cosmic-web density field in three slices for the profile README."""
 import argparse
 from dataclasses import dataclass
-from math import cos, pi, tau
+from math import pi, tau
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
@@ -17,13 +17,17 @@ BANNER_WIDTH = 1200
 ENTRY_X = round(WIDTH * BANNER_EXIT_X / BANNER_WIDTH)
 PANELS = (("stitch-descent", 336), ("stitch-resume", 280), ("stitch-pulse", 216))
 HEIGHT = sum(height for _, height in PANELS)
-FOOTER_CENTER = (WIDTH // 2, HEIGHT - PANELS[-1][1] // 2)
+FOOTER_FORK = (WIDTH // 2, 716)
+FOOTER_BRANCHES = (
+    (FOOTER_FORK, (325, 748), (248, 784), (204, 822), (196, 856)),
+    (FOOTER_FORK, (449, 741), (514, 778), (561, 817), (579, 854)),
+)
 # The flow route is a chain of clouds from the banner output through both
-# picture boundaries and into the terminal cluster. No route is painted as a stroke.
+# picture boundaries and into the two footer branches. No route is painted as a stroke.
 FLOW = (
     (ENTRY_X, -25), (593, 34), (511, 96), (466, 143), (376, 186), (322, 253),
     (279, 311), (265, 351), (302, 394), (395, 439), (488, 493), (521, 548),
-    (502, 592), (482, 640), (441, 675), FOOTER_CENTER, (354, 796), (323, 861),
+    (502, 592), (482, 640), (441, 675), FOOTER_FORK,
 )
 # Knots and adjacent lanes leave asymmetric voids of different sizes.
 NEBULAE = (
@@ -46,8 +50,9 @@ class Filament:
 
 def topology():
     """Connect each neighboring cloud into an interlaced volumetric field."""
-    strands = [Filament(a, b, True) for a, b in zip(FLOW, FLOW[1:])]
-    nodes = FLOW + NEBULAE
+    routes = (FLOW, *FOOTER_BRANCHES)
+    strands = [Filament(a, b, True) for route in routes for a, b in zip(route, route[1:])]
+    nodes = tuple(dict.fromkeys(node for route in routes for node in route)) + NEBULAE
     seen = {frozenset((edge.start, edge.end)) for edge in strands}
     for start in NEBULAE:
         adjacent = sorted((point for point in nodes if point != start),
@@ -113,9 +118,11 @@ def render_field():
             steps = np.linspace(0, 1, 144)
             px, py = filament_path(np, edge, steps, shift)
             deposit(np, route, px, py, np.full(steps.size, 2.0))
-    for index, (x, y) in enumerate(FLOW[1:-1] + NEBULAE):
-        primary = index < len(FLOW)-2
-        prominent = (x, y) == FOOTER_CENTER or primary and index % 3 == 0
+    main_knots = FLOW[1:-1]
+    branch_knots = tuple(node for route in FOOTER_BRANCHES for node in route[1:-1])
+    for index, (x, y) in enumerate(main_knots + (FOOTER_FORK,) + branch_knots + NEBULAE):
+        primary = index < len(main_knots)
+        prominent = primary and index % 3 == 0
         count = 127 if prominent else 79 if primary else 41
         spread = 5.6 if prominent else 3.6 if primary else 3.75
         rx, ry = rng.normal(0, spread, (2, count))
@@ -123,7 +130,7 @@ def render_field():
         deposit(np, cores, x+rx, y+ry, (1.4 if prominent else 0.83)*jitter)
         deposit(np, dust, x+rx*2.1, y+ry*1.47, jitter*1.23)
 
-    # Fibonacci blur scales separate broad violet density, luminous strands and
+    # Fibonacci blur scales separate broad blue density, luminous strands and
     # compact stellar knots. High-frequency variation stays spatial, not temporal.
     veil = gaussian_filter(gas + background_dust * 2, (13, 21)) * 6.2
     plasma = gaussian_filter(gas + dust * 0.39, (5, 8)) * 3.9
@@ -134,16 +141,20 @@ def render_field():
     columns = np.linspace(0, 1, WIDTH)
     rows = np.linspace(0, 1, shape[0])[:, None]
     hue = (0.48 + 0.39*np.sin(tau*(columns-rows*0.37+0.1)))[..., None]
-    hot = np.array([0.98, 0.20, 0.68])*hue + np.array([0.34, 0.43, 1.0])*(1-hue)
-    light = (far[..., None]*[0.64, 0.14, 0.53] +
-             veil[..., None]*[0.47, 0.13, 0.50] +
-             plasma[..., None]*hot +
-             filaments[..., None]*[0.72, 0.38, 0.96] +
-             clusters[..., None]*[0.36, 0.81, 1.0] +
-             motes[..., None]*[0.74, 0.76, 1.0])
-    # A few warm intersections carry the original copper without outlining the mesh.
-    warm = np.sin(tau*(columns*1.47 + 0.03))**4
-    light += (clusters*warm[None, :]*0.24)[..., None]*[1.0, 0.49, 0.14]
+    clouds = np.array([0.16, 0.67, 0.69])*hue + np.array([0.30, 0.42, 0.81])*(1-hue)
+    light = (far[..., None]*[0.25, 0.41, 0.63] +
+             veil[..., None]*[0.19, 0.28, 0.43] +
+             plasma[..., None]*clouds +
+             filaments[..., None]*[0.34, 0.74, 0.81] +
+             clusters[..., None]*[0.59, 0.90, 0.87] +
+             motes[..., None]*[0.68, 0.85, 0.91])
+    # Tint a few knots and their dust halos with the banner's coral accent.
+    x = np.arange(WIDTH)
+    y = np.arange(shape[0])[:, None] - margin
+    luminance = light @ np.array([0.21, 0.72, 0.07])
+    for cx, cy in ((80, 90), (698, 259), (171, 503), (647, 555), (215, 640), (616, 671)):
+        warm = np.exp(-(((x-cx)/27)**2 + ((y-cy)/18)**2))[..., None]
+        light = light*(1-warm) + (luminance[..., None]*[1.78, 0.86, 0.51])*warm
     core_light = gaussian_filter(route, (2.6, 4.6)) * 5.3
     return light[margin:margin+HEIGHT], core_light[margin:margin+HEIGHT]
 
@@ -159,26 +170,27 @@ def panel_image(light, route, name, offset, phase=None):
     route_x, route_y = zip(*FLOW)
     handoff = np.interp(y+offset, route_y, route_x)
     edge_glow = np.exp(-((x-handoff)/34)**2)
+    if name == "stitch-pulse":
+        # Let the two tips trail toward the card columns while the rest fades.
+        tips = [np.exp(-((x-branch[-2][0])/34)**2) for branch in FOOTER_BRANCHES]
+        edge_glow = np.where(y >= height//2, np.maximum(*tips), edge_glow)
     fade = edge**0.72
     border = fade + (1-fade)*(0.13 + 0.49*edge_glow)
     border *= 0.68 + 0.32*np.minimum(1, np.minimum(x, WIDTH-1-x)/34)
     base = 1-np.exp(-light)
     boost = 0
-    if name == "stitch-pulse":
-        diffuse = np.exp(-(((x-FOOTER_CENTER[0])/21)**2 +
-                           ((y+offset-FOOTER_CENTER[1])/13)**2))
-        inner = np.exp(-(((x-FOOTER_CENTER[0]-8)/21)**2 +
-                         ((y+offset-FOOTER_CENTER[1]+6)/13)**2))
-        base *= 1 - 0.49*diffuse[..., None]
-        if phase is not None:
-            pulse = (1+cos(tau*phase))*0.5
-            boost = (diffuse*pulse*0.69 + inner*(1+cos(tau*(phase-1/13)))*0.09)[..., None]
-    elif phase is not None:
+    if phase is not None:
         period = FIBONACCI[-1]
         travel = (phase*period - offset-y + period/2) % period-period/2
-        pulse = np.exp(-(travel/6.5)**2)
-        boost = (np.minimum(1, route)*pulse*0.92)[..., None]
-    illumination = np.clip(base + boost*np.array([0.50, 0.76, 0.86]), 0, 1)
+        if name == "stitch-pulse":
+            # An uneven split makes the two outgoing ripples feel like growth.
+            travel = travel + np.clip((x-FOOTER_FORK[0])/170, -1, 1) * (y/height)*8
+            pulse = np.exp(-(travel/11)**2)
+            boost = (np.minimum(1, route)*pulse*(0.60 + 0.23*(y/height)**2))[..., None]
+        else:
+            pulse = np.exp(-(travel/6.5)**2)
+            boost = (np.minimum(1, route)*pulse*0.92)[..., None]
+    illumination = np.clip(base + boost*np.array([0.47, 0.78, 0.84]), 0, 1)
     # Use a single fixed image exposure and a screen-like highlight rolloff.
     rgb = np.asarray(BACKGROUND) + 224*illumination*border[..., None]
     image = Image.fromarray(np.rint(rgb).clip(0, 255).astype(np.uint8))
@@ -202,7 +214,7 @@ def render(output):
         sample = Image.new("RGB", (still.width, still.height*5))
         for index, frame in enumerate((still, frames[0], frames[5], frames[10], frames[15])):
             sample.paste(frame, (0, index*still.height))
-        palette = sample.quantize(colors=76, method=Image.Quantize.MEDIANCUT)
+        palette = sample.quantize(colors=62, method=Image.Quantize.MEDIANCUT)
         encoded = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in frames]
         encoded[0].save(output / f"{name}.gif", save_all=True, append_images=encoded[1:],
                         duration=FRAME_MS, loop=0, disposal=1, optimize=True)

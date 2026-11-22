@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from render_profile_motion import (
-    BANNER_EXIT_X, BANNER_WIDTH, ENTRY_X, FIBONACCI, FLOW, FOOTER_CENTER,
+    BANNER_EXIT_X, BANNER_WIDTH, ENTRY_X, FIBONACCI, FLOW, FOOTER_BRANCHES, FOOTER_FORK,
     FRAME_MS, FRAMES, NEBULAE, PANELS, WIDTH, topology,
 )
 from profile_release import archive_prefix, catalog
@@ -130,17 +130,23 @@ class ProfileVisualTests(unittest.TestCase):
     def test_shared_field_crosses_both_readme_seams(self):
         seams = (0, PANELS[0][1], PANELS[0][1] + PANELS[1][1])
         edges = [strand for strand in topology() if strand.flow]
-        self.assertEqual([(edge.start, edge.end) for edge in edges], list(zip(FLOW, FLOW[1:])))
+        routes = (FLOW, *FOOTER_BRANCHES)
+        self.assertEqual([(edge.start, edge.end) for edge in edges],
+                         [edge for route in routes for edge in zip(route, route[1:])])
         self.assertTrue(all(edge.end[1] > edge.start[1] for edge in edges))
         self.assertEqual(FLOW[0][0], ENTRY_X)
         self.assertAlmostEqual(ENTRY_X / WIDTH, BANNER_EXIT_X / BANNER_WIDTH, places=3)
-        self.assertIn(FOOTER_CENTER, FLOW)
+        self.assertEqual(FLOW[-1], FOOTER_FORK)
+        self.assertTrue(all(route[0] == FOOTER_FORK for route in FOOTER_BRANCHES))
+        left, right = (route[-2][0] / WIDTH for route in FOOTER_BRANCHES)
+        self.assertAlmostEqual(left, 0.25, delta=0.03)
+        self.assertAlmostEqual(right, 0.75, delta=0.03)
         for seam in seams:
             self.assertEqual(sum(edge.start[1] < seam < edge.end[1] for edge in edges), 1)
 
     def test_growth_connects_neighboring_clouds(self):
         degree = Counter(point for edge in topology() for point in (edge.start, edge.end))
-        self.assertEqual(set(degree), set(FLOW + NEBULAE))
+        self.assertEqual(set(degree), set(FLOW + NEBULAE).union(*FOOTER_BRANCHES))
         self.assertTrue(all(degree[cloud] >= 3 for cloud in NEBULAE))
         self.assertGreaterEqual(sum(value >= 4 for value in degree.values()), 20)
 
@@ -169,6 +175,11 @@ class ProfileVisualTests(unittest.TestCase):
                        duration=FRAME_MS, loop=0)
         with self.assertRaisesRegex(ProfileCheckError, "traveling down"):
             check_motion_pixels({**self.assets, CONTINUATION: reversed_gif.getvalue()})
+
+    def test_old_stationary_footer_fails_decoded_motion_check(self):
+        stationary = (ROOT / archive_prefix("v07") / PULSE).read_bytes()
+        with self.assertRaisesRegex(ProfileCheckError, "footer branches"):
+            check_motion_pixels({**self.assets, PULSE: stationary})
 
     def test_review_protects_assets_and_renderer(self):
         review = json.loads((ROOT / ARTWORK_REVIEW).read_text(encoding="utf-8"))

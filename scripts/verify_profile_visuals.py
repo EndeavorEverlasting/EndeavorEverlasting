@@ -40,7 +40,7 @@ ARTWORK_REVIEW = "assets/profile-artwork-review.json"
 RENDERER = "scripts/render_profile_motion.py"
 ARTWORK_CRITERIA = ("cosmic_density", "dark_voids", "luminous_clusters",
                     "vertical_continuity", "phone_legibility", "fibonacci_structure",
-                    "handoff_ontology", "continuous_motion")
+                    "handoff_ontology", "continuous_motion", "palette", "pinned_handoff")
 
 
 class ProfileCheckError(ValueError):
@@ -275,6 +275,22 @@ def check_cosmic_density(image, path):
             f"{path} must retain dark voids, diffuse filament density and compact luminous cores.")
 
 
+def check_footer_handoff(changes):
+    """Both outgoing pulses must reach the bottom in downward order."""
+    width, height = changes[0].size
+    bands = [round(height*fraction) for fraction in (1/2, 2/3, 5/6, 1)]
+    for left, right in ((width//6, width//2), (width//2, 5*width//6)):
+        peaks = []
+        for top, bottom in zip(bands, bands[1:]):
+            energy = [sum(max(0, value-12) for value in frame.crop(
+                (left, top, right, bottom)).tobytes()) for frame in changes]
+            peaks.append(max(range(len(energy)), key=energy.__getitem__))
+            require(max(energy) >= 50, "Both footer branches must visibly pulse near the lower edge.")
+        steps = [(end-start) % len(changes) for start, end in zip(peaks, peaks[1:])]
+        require(all(0 < step <= len(changes)//3 for step in steps),
+                "Both footer branches must pulse downward toward the pinned projects.")
+
+
 def check_motion_pixels(asset_bytes):
     """Measure the actual GIF frames after browser-like phone-scale resampling."""
     from PIL import Image, ImageChops, ImageSequence
@@ -301,25 +317,18 @@ def check_motion_pixels(asset_bytes):
         require(typical >= minimum, f"{path} has no legible motion at phone width.")
         require(0 < deltas[-1] <= typical * 2,
                 f"{path} visibly jumps or holds at the repeat seam.")
+        # Subtract the stationary dust using the darkest observed local value.
+        floor = frames[0]
+        for frame in frames[1:]:
+            floor = ImageChops.darker(floor, frame)
+        changes = [ImageChops.subtract(frame, floor) for frame in frames]
         if path == PULSE:
-            cx, cy = frames[0].width//2, frames[0].height//2
-            roi = (cx-6, cy-4, cx+6, cy+4)
-
-            def core_light(image):
-                return sum(level*count for level, count in enumerate(image.crop(roi).histogram()))
-
-            require(core_light(frames[0]) - core_light(frames[len(frames)//2]) > 1900,
-                    "Footer cluster must visibly brighten and dim.")
+            check_footer_handoff(changes)
         else:
-            # Track the positive-light band against the darkest observed local
-            # value. Check that it crosses a middle-height band downward.
-            floor = frames[0]
-            for frame in frames[1:]:
-                floor = ImageChops.darker(floor, frame)
             middle = (0, round(frames[0].height*0.28), 255, round(frames[0].height*0.68))
             centers = []
-            for frame in frames:
-                band = ImageChops.subtract(frame, floor).crop(middle)
+            for change in changes:
+                band = change.crop(middle)
                 pixels = band.tobytes()
                 rows = [sum(max(0, value-16) for value in pixels[i:i+255])
                         for i in range(0, len(pixels), 255)]
