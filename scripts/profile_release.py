@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from tempfile import NamedTemporaryFile
 
-from verify_profile_scope import MEDIA_FILENAME, PROFILE_MEDIA, RELEASE_ID
+from verify_profile_scope import FOOTER_INVITATION, MEDIA_FILENAME, PROFILE_MEDIA, RELEASE_ID
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = "assets/profile-releases.json"
@@ -88,7 +88,7 @@ def layout(text):
             slot = "after_intro"
         elif after.startswith("### Selected work"):
             slot = "before_work"
-        elif not after:
+        elif not after or FOOTER_INVITATION.fullmatch(after):
             slot = "bottom"
         else:
             raise ReleaseError("A profile image is outside the supported layout positions.")
@@ -181,8 +181,11 @@ def insert_layout(current, blocks):
         if slot == "top":
             start = re.match(r"\A(?:[ \t]*<!--[^\n]*-->[ \t]*\n)?\n*", plain).end()
         elif slot == "bottom":
-            plain = plain.rstrip("\n") + "\n\n" + rendered.rstrip("\n") + "\n"
-            continue
+            invitation = FOOTER_INVITATION.search(plain)
+            if not invitation:
+                plain = plain.rstrip("\n") + "\n\n" + rendered.rstrip("\n") + "\n"
+                continue
+            start = invitation.start()
         else:
             anchor = {"after_intro": "I care about what happens", "before_work": "### Selected work"}[slot]
             candidates = list(re.finditer(rf"(?m)^{re.escape(anchor)}", plain))

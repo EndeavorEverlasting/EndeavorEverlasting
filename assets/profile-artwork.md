@@ -84,6 +84,7 @@ The catalog records the original commit and checksums for its archived files.
 Create a branch from current main. The first restore command prints a patch.
 The second applies it to your checkout. It changes the media blocks and the
 active version in the catalog while preserving the current README prose.
+A repository invitation stays below the restored footer artwork.
 GitHub account settings, including the avatar and bio, live outside this archive.
 
 ```sh

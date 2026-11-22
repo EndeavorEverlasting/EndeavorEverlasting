@@ -11,6 +11,7 @@ from render_profile_motion import (
     FRAME_MS, FRAMES, NEBULAE, PANELS, WIDTH, topology,
 )
 from profile_release import archive_prefix, catalog
+from verify_profile_scope import REPOSITORIES_URL
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
@@ -60,6 +61,23 @@ class ProfileVisualTests(unittest.TestCase):
         ):
             with self.subTest(markup=bad_markup), self.assertRaises(ProfileCheckError):
                 checked_images(bad_markup, live=True)
+
+    def test_public_invitation_follows_the_footer_with_the_expected_link(self):
+        invitation = (f'<p><strong>Explore projects.</strong> Start with the pins below. '
+                      f'<a href="{REPOSITORIES_URL}">Browse all repositories</a></p>')
+        live = self.live.replace("</article>", invitation + "</article>")
+        checked_images(live, live=True, invitation=invitation)
+        for bad in (
+            self.live,
+            self.live.replace(self.pulse, invitation + self.pulse),
+            live.replace('<p><strong>Explore', '<p hidden><strong>Explore'),
+            live.replace(REPOSITORIES_URL, "https://example.com/projects"),
+            live.replace(f'<a href="{REPOSITORIES_URL}">Browse all repositories</a>',
+                         f'Browse all repositories<a href="{REPOSITORIES_URL}"></a>'),
+            live.replace("</article>", "<p>Extra copy</p></article>"),
+        ):
+            with self.subTest(markup=bad), self.assertRaisesRegex(ProfileCheckError, "invitation"):
+                checked_images(bad, live=True, invitation=invitation)
 
     def test_local_readme_missing_inert_or_narrow_gif(self):
         tag = next(line for line in self.readme.splitlines() if f'src="{CONTINUATION}"' in line)
