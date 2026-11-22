@@ -1,20 +1,19 @@
 """Regression cases for the profile rollout verification."""
+from collections import Counter
 from io import BytesIO
 import json
-from math import hypot, sqrt
 from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 from render_profile_motion import (
-    CONTINUATION as CONTINUATION_CURVES, OPENING as OPENING_CURVES,
-    PULSE as PULSE_CURVES, FIBONACCI, FRAME_MS, FRAMES, HANDOFF, OPENING_HEIGHT,
-    RING_RADII, SPIRAL_RADII, WIDTH, dendrites, fibonacci_spiral, verify_thread_direction,
+    BANNER_EXIT_X, BANNER_WIDTH, ENTRY_X, FIBONACCI, FLOW, FOOTER_CENTER,
+    FRAME_MS, FRAMES, NEBULAE, PANELS, WIDTH, topology,
 )
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
-    ProfileCheckError, check_artwork, check_motion_pixels, check_review,
+    ProfileCheckError, check_artwork, check_cosmic_density, check_motion_pixels, check_review,
     checked_images, gif_timing, verify_public,
 )
 
@@ -125,40 +124,36 @@ class ProfileVisualTests(unittest.TestCase):
         with self.assertRaisesRegex(ProfileCheckError, "same dimensions"):
             check_artwork({**self.assets, opening_still: wrong_still})
 
-    def test_threads_descend_and_match_across_the_copy(self):
-        verify_thread_direction(OPENING_CURVES, CONTINUATION_CURVES)
-        opening_sideways = (((10, 90), (40, 90, 60, 90, 100, 90)), *OPENING_CURVES[1:])
-        with self.assertRaisesRegex(ValueError, "top to the bottom"):
-            verify_thread_direction(opening_sideways, CONTINUATION_CURVES)
-        start, *remaining = CONTINUATION_CURVES[0]
-        shifted = (((start[0] + 10, start[1]), *remaining), *CONTINUATION_CURVES[1:])
-        with self.assertRaisesRegex(ValueError, "endpoints must align"):
-            verify_thread_direction(OPENING_CURVES, shifted)
+    def test_shared_field_crosses_both_readme_seams(self):
+        seams = (0, PANELS[0][1], PANELS[0][1] + PANELS[1][1])
+        edges = [strand for strand in topology() if strand.flow]
+        self.assertEqual([(edge.start, edge.end) for edge in edges], list(zip(FLOW, FLOW[1:])))
+        self.assertTrue(all(edge.end[1] > edge.start[1] for edge in edges))
+        self.assertEqual(FLOW[0][0], ENTRY_X)
+        self.assertAlmostEqual(ENTRY_X / WIDTH, BANNER_EXIT_X / BANNER_WIDTH, places=3)
+        self.assertIn(FOOTER_CENTER, FLOW)
+        for seam in seams:
+            self.assertEqual(sum(edge.start[1] < seam < edge.end[1] for edge in edges), 1)
 
-    def test_dendrites_have_depth_and_tapered_connected_offshoots(self):
-        branches = dendrites(OPENING_CURVES, OPENING_HEIGHT, True)
-        trunks = [branch for branch in branches if branch.signal is not None]
-        offshoots = [branch for branch in branches if branch.signal is None]
-        self.assertEqual([branch.signal for branch in trunks], list(range(4)))
-        self.assertTrue(any(branch.depth < 0 for branch in offshoots))
-        self.assertTrue(any(0 < branch.depth < min(t.depth for t in trunks)
-                            for branch in offshoots))
-        for branch in offshoots:
-            self.assertGreater(branch.radii[0], 2 * branch.radii[-1])
-            self.assertTrue(any(branch.points[0] in parent.points
-                                for parent in branches if parent is not branch))
+    def test_growth_connects_neighboring_clouds(self):
+        degree = Counter(point for edge in topology() for point in (edge.start, edge.end))
+        self.assertEqual(set(degree), set(FLOW + NEBULAE))
+        self.assertTrue(all(degree[cloud] >= 3 for cloud in NEBULAE))
+        self.assertGreaterEqual(sum(value >= 4 for value in degree.values()), 20)
 
-    def test_fibonacci_geometry_and_cadence(self):
+    def test_fibonacci_cadence(self):
         self.assertTrue(all(a + b == c for a, b, c in zip(FIBONACCI, FIBONACCI[1:], FIBONACCI[2:])))
-        self.assertEqual(RING_RADII, (21, 34, 55, 89, 144, 233))
-        self.assertEqual(HANDOFF, tuple(WIDTH//2 + x for x in (-55, -21, 21, 55)))
         self.assertEqual((FRAME_MS, FRAMES), (130, 21))
-        spiral = fibonacci_spiral((0, 0), 0.42)
-        for index, radius in enumerate(SPIRAL_RADII):
-            start, end = spiral[index*64], spiral[(index+1)*64]
-            self.assertAlmostEqual(hypot(end[0]-start[0], end[1]-start[1]), sqrt(2)*radius)
-        self.assertEqual(tuple(route[-1][-2] for route in CONTINUATION_CURVES),
-                         tuple(route[0][0] for route in PULSE_CURVES))
+
+    def test_sparse_line_art_and_uniform_fog_fail_density_check(self):
+        from PIL import Image, ImageDraw
+
+        thin = Image.new("L", (255, 100), 13)
+        ImageDraw.Draw(thin).line((13, 0, 237, 99), fill=203, width=11)
+        uniform = Image.new("L", (255, 100), 74)
+        for sample in (thin, uniform):
+            with self.assertRaisesRegex(ProfileCheckError, "diffuse filament density"):
+                check_cosmic_density(sample, "fixture")
 
     def test_reverse_flow_fails_decoded_motion_check(self):
         from PIL import Image, ImageSequence
@@ -184,7 +179,7 @@ class ProfileVisualTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaisesRegex(ProfileCheckError, "reviewed version"):
                 check_review(review, {**release, path: changed})
         notes = dict(review["observations"])
-        notes.pop("no_sketch_edges")
+        notes.pop("cosmic_density")
         with self.assertRaisesRegex(ProfileCheckError, "every visual observation"):
             check_review({**review, "observations": notes}, release)
 

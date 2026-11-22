@@ -1,25 +1,26 @@
 # Profile artwork
 
 The banner introduces fragmented handoffs, the needle and a repeatable workflow.
-The first GIF brings teal and copper dendrites into the needle. Four
-aligned strands cross the introduction into the continuation GIF, which
-branches into distinct repeatable endpoints. The footer picks up those
-endpoints and converges around an hourglass. Its pulse represents
-long-horizon durability and closes the page.
+Its lower-right output dissolves into the opener's violet field. The first GIF
+carries a cyan-white signal down through clusters toward the introduction.
+The second resumes the same field beneath the copy and leads into the
+remaining sections. The final GIF collects light in a breathing cluster,
+carrying the banner's theme of long-horizon durability to the bottom of the page.
 
-Use Fibonacci proportions throughout profile artwork. The banner retains its
-original 13, 21, 34, 55 and 89 quarter-circle arcs. The GIFs share successive
-quarter-circle arcs, inset rings with radii 21, 34, 55, 89, 144 and 233, branch
-spacing and reach from the same sequence, and a cadence of 21 frames at
-130 milliseconds. The spiral and cut rings sit behind the needle and branches.
-Keep the needle and strand junctions visible. Use tapered attached forks,
-visible occlusion, curved material highlights and clean silhouettes.
-Uniform paths, disconnected nodes and pencil or crayon textures fail review.
+The cosmic web is one deterministic density field sliced at the two text breaks.
+Neighboring clouds connect through granular violet filaments, cool luminous
+knots and sparse warmer points. Dark voids provide scale and separate the
+layers. Keep individual paths buried in the density and let bright regions
+emerge where clouds meet. Exposed wireframes, concentric rings, metallic tubes,
+claws and repeated root silhouettes fail visual review. Fibonacci proportions
+govern the density scales, phase period and the cadence of 21 frames at
+130 milliseconds. The existing banner retains its Fibonacci spiral.
 
 ## Regenerate and review
 
-The renderer uses NumPy and Pillow. The current assets used NumPy 2.3.5
-and Pillow 13.0.0. The visual checker uses Pillow to decode shipped GIFs.
+The renderer uses NumPy, SciPy and Pillow. The current assets used NumPy 2.3.5,
+SciPy 1.17.0 and Pillow 13.0.0. The visual checker uses Pillow to decode
+shipped GIFs.
 
 ```sh
 python scripts/render_profile_motion.py --output /path/to/preview
@@ -28,15 +29,17 @@ python scripts/verify_profile_visuals.py
 python -m unittest discover -s scripts -v
 ```
 
-Inspect each encoded GIF and its PNG still at desktop width and at 255 px
-image width. Compare the previous release at the same widths. Confirm that
-light descends across both moving panels and that the bottom hourglass
-brightens and dims through each complete cycle. The checker measures decoded
-movement, the wraparound frame, GIF repeat metadata, timing, placement and
-matching PNG fallbacks. Keep the three animations under 250 kB combined.
-Update the visual observations and SHA-256 values in
-[profile-artwork-review.json](profile-artwork-review.json) after inspection
-of those exact encodes. The visual judgment remains part of the review.
+Inspect each encoded GIF and its PNG still at desktop width and at 255 px.
+Check that the banner output meets the projected opening field. Keep a visible
+anchor at each text break and fade the surrounding light at the image edges.
+The validator checks the sequence, detached or misplaced panels, repeat
+metadata, downward signal, footer pulse and matching reduced-motion stills.
+The pixel checks also look for broad midtone density, deep voids and luminous
+cores, rejecting sparse line-art silhouettes and undifferentiated fog. Retain
+the qualitative visual review for organic shape and a sense of depth.
+Keep the three GIFs under 250 kB combined. Update
+[profile-artwork-review.json](profile-artwork-review.json) after inspecting
+the exact files.
 
 ## Keep changes scoped
 

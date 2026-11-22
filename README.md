@@ -1,11 +1,11 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <p align="center">
-  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral branches show fragmented handoffs stitched into a repeatable workflow." />
+  <img src="assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral handoffs stitch into a repeatable workflow and feed a violet star field." />
 </p>
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-descent.png" />
-  <img src="assets/stitch-descent.gif" width="100%" alt="Copper and teal dendrites converge at a needle and hourglass before descending as four strands." />
+  <img src="assets/stitch-descent.gif" width="100%" alt="Light travels downward through violet filaments, gathering into bright clusters along the way." />
 </picture>
 
 # Threading complexity into stability
@@ -18,7 +18,7 @@ I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-resume.png" />
-  <img src="assets/stitch-resume.gif" width="100%" alt="The four joined strands descend and branch into repeatable connections." />
+  <img src="assets/stitch-resume.gif" width="100%" alt="The same cosmic web continues downward and spreads into new clusters." />
 </picture>
 
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
@@ -46,5 +46,5 @@ I care about what happens *after* a promising prototype: whether someone else ca
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/stitch-pulse.png" />
-  <img src="assets/stitch-pulse.gif" width="100%" alt="The hourglass and its surrounding ring pulse gently at the ends of the network." />
+  <img src="assets/stitch-pulse.gif" width="100%" alt="At the end of the cosmic web, a luminous cluster brightens and dims gently." />
 </picture>

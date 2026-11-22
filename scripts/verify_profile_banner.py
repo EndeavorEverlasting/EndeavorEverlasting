@@ -4,6 +4,8 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
+from render_profile_motion import BANNER_EXIT_X
+
 root_dir = Path(__file__).resolve().parents[1]
 svg_path = root_dir / "assets" / "hero.svg"
 readme_path = root_dir / "README.md"
@@ -35,6 +37,16 @@ assert_true(arcs == [(str(r), str(r)) for r in (13, 21, 34, 55, 89)],
 flow = root.find(".//*[@id='flow-diagram']")
 assert_true(flow.get("aria-label") == "Fragmented handoffs stitched into one repeatable workflow",
             "Banner must retain the fragmented-to-repeatable workflow semantics")
+
+# The banner output lands at the entry point of the same world-coordinate field.
+handoff = root.find(".//*[@id='cosmic-web-handoff']")
+assert_true(handoff is not None and handoff.get("data-exit-x") == str(BANNER_EXIT_X),
+            "The banner output must align with the opening cosmic field")
+feed = handoff.find(".//*[@id='cosmic-feed']")
+endpoint = re.search(r"(\d+)\s+(\d+)\s*$", feed.get("d", "") if feed is not None else "")
+assert_true(endpoint is not None and int(endpoint.group(1)) == BANNER_EXIT_X and
+            int(endpoint.group(2)) >= 390,
+            "The visible glow must reach the opening field from the bottom of the banner")
 
 # Profile copy reflows as text alongside the banner artwork.
 assert_true("# Threading complexity into stability" in readme, "Profile headline must be readable text")

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="title desc">
   <title id="title">EndeavorEverlasting — Threading complexity into stability</title>
-  <desc id="desc">Endeavor Everlasting: Threading Complexity Into Stability. I connect people, processes, and tools. Teal and coral branches approach a seam from the left. A needle stitches the edges together and the joined workflow reaches several endpoints. A faint Fibonacci spiral runs from the fragmented handoffs to the repeatable workflow.</desc>
+  <desc id="desc">Endeavor Everlasting: Threading Complexity Into Stability. I connect people, processes, and tools. Teal and coral branches approach a seam from the left. A needle stitches the edges together and the joined workflow reaches several endpoints. A faint Fibonacci spiral runs from the fragmented handoffs to the repeatable workflow. Its outputs trail into the profile’s cosmic web.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111a24"/><stop offset="1" stop-color="#070d14"/></linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fd8065"/><stop offset="1" stop-color="#ffbd7c"/></linearGradient>
@@ -26,12 +26,38 @@
       <rect x="800" y="40" width="320" height="258" fill="#fff"/>
       <rect x="803" y="95" width="192" height="22" fill="url(#spiral-caption-fade)"/>
     </mask>
+    <radialGradient id="handoff-cloud">
+      <stop offset="0" stop-color="#a5cafa" stop-opacity=".74"/>
+      <stop offset=".24" stop-color="#7664d0" stop-opacity=".38"/>
+      <stop offset=".62" stop-color="#9a497d" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#322543" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="handoff-light" x1="1087" y1="249" x2="958" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9978" stop-opacity=".22"/>
+      <stop offset=".4" stop-color="#aa77cc" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#afcaff" stop-opacity=".56"/>
+    </linearGradient>
+    <filter id="handoff-diffusion" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
   </defs>
   <g clip-path="url(#clip)">
     <rect width="1200" height="390" fill="url(#bg)"/>
     <rect width="1200" height="390" fill="url(#grid)"/>
     <rect x="0" y="0" width="8" height="390" fill="url(#accent)"/>
     <path d="M 0 0 H 1200" stroke="#36485a" opacity=".5"/>
+    <g id="cosmic-web-handoff" data-exit-x="958" aria-hidden="true">
+      <path id="cosmic-feed" d="M1087 249 Q1081 296 1031 315 Q977 341 958 398"
+            fill="none" stroke="url(#handoff-light)" stroke-width="13" filter="url(#handoff-diffusion)"/>
+      <ellipse cx="1031" cy="315" rx="34" ry="13" fill="url(#handoff-cloud)" transform="rotate(-24 1031 315)"/>
+      <ellipse cx="989" cy="352" rx="33" ry="19" fill="url(#handoff-cloud)" transform="rotate(-39 989 352)"/>
+      <ellipse cx="958" cy="389" rx="54" ry="26" fill="url(#handoff-cloud)"/>
+      <g fill="#b3bbef" opacity=".55">
+        <circle cx="1036" cy="309" r="1.6"/><circle cx="1011" cy="326" r="1.2"/>
+        <circle cx="993" cy="346" r="1.7"/><circle cx="981" cy="367" r="1"/>
+        <circle cx="969" cy="372" r="1.85"/><circle cx="951" cy="384" r="1.25"/>
+      </g>
+    </g>
     <g font-family="Arial, Helvetica, sans-serif">
       <!-- An hourglass replaces the former checkmark: long-horizon durability. -->
       <rect id="hourglass-badge" x="54" y="40" width="32" height="32" rx="9" fill="#fe936c"/>
