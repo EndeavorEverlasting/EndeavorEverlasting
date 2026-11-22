@@ -32,6 +32,12 @@ PROFILE_MEDIA = re.compile(
 )
 
 
+REPOSITORIES_URL = "https://github.com/EndeavorEverlasting?tab=repositories"
+FOOTER_INVITATION = re.compile(
+    rf'(?m)^<p><strong>[^<\n]+</strong>[^<\n]+'
+    rf'<a href="{re.escape(REPOSITORIES_URL)}">[^<\n]+</a></p>[ \t]*\s*\Z'
+)
+
 
 class ProfileScopeError(ValueError):
     pass

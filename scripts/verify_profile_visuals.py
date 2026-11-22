@@ -14,6 +14,8 @@ import time
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
 
+from verify_profile_scope import FOOTER_INVITATION, REPOSITORIES_URL
+
 PROFILE = "https://github.com/EndeavorEverlasting"
 REPO = "EndeavorEverlasting/EndeavorEverlasting"
 BANNER = "assets/hero.svg"
@@ -61,6 +63,7 @@ class ProfileImages(HTMLParser):
         self.images = []
         self.pictures = []
         self.body_text = []
+        self.links = []
         self.picture = None
         self.positions = {text: [] for text in MILESTONES}
         self.feed(source)
@@ -90,9 +93,11 @@ class ProfileImages(HTMLParser):
             self.picture.append((self.getpos(), attrs))
         elif tag == "img":
             self.images.append((self.getpos(), attrs, self.picture))
+        elif tag == "a" and attrs.get("href"):
+            self.links.append((self.getpos(), attrs["href"]))
 
     def handle_data(self, data):
-        if not self.live or self.hidden_elements or not any(self.articles):
+        if self.hidden_elements or (self.live and not any(self.articles)):
             return
         visible = data.strip()
         if visible:
@@ -124,7 +129,21 @@ def asset_url(src, path, live):
     return src
 
 
-def checked_images(source, *, live=False):
+def check_footer_text(page, position, invitation):
+    """Match the visible text and destination after the last artwork."""
+    trailing_text = " ".join(text for offset, text in page.body_text if offset > position)
+    trailing_links = [urljoin(PROFILE, href) for offset, href in page.links if offset > position]
+    if invitation is None:
+        require(not trailing_text and not trailing_links,
+                "The pulsing artwork must be the last visible README content.")
+        return
+    expected = ProfileImages(invitation, False)
+    expected_text = " ".join(text for _, text in expected.body_text)
+    require(trailing_text.split() == expected_text.split() and trailing_links == [REPOSITORIES_URL],
+            "The repository invitation must follow the pulsing artwork and link to the repository list.")
+
+
+def checked_images(source, *, live=False, invitation=None):
     if not live:
         source = re.sub(r"(?s)<!--.*?-->", "", source)
         source = re.sub(r"(?ms)^ {0,3}(\x60{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$", "", source)
@@ -170,13 +189,11 @@ def checked_images(source, *, live=False):
             positions[CONTINUATION] < second < work < closing < positions[PULSE],
             "Place the banner, opener, intro, continuation, body and pulse in reading order.")
     if live:
-        # Readable copy after the footer would break the visual bookend.
-        article_text = [position for position, _ in page.body_text]
-        require(not article_text or max(article_text) < positions[PULSE],
-                "The pulsing artwork must be the last visible README content.")
+        check_footer_text(page, positions[PULSE], invitation)
     else:
-        tail = re.split(r"</picture>", source, flags=re.I)[-1]
-        require(not tail.strip(), "The pulsing artwork must be the last README content.")
+        tail = re.split(r"</picture>", source, flags=re.I)[-1].lstrip()
+        require(not tail or FOOTER_INVITATION.fullmatch(tail),
+                "Only the repository invitation may follow the pulsing artwork.")
     return images
 
 
@@ -376,15 +393,15 @@ def check_review(review, release_bytes):
                 f"{path} differs from the reviewed version. See assets/profile-artwork.md.")
 
 
-def verify_public(expected_images, asset_bytes):
-    actual = checked_images(read_url(PROFILE).decode("utf-8"), live=True)
+def verify_public(expected_images, asset_bytes, invitation=None):
+    actual = checked_images(read_url(PROFILE).decode("utf-8"), live=True, invitation=invitation)
     for path, (src, alt) in actual.items():
         require(alt == expected_images[path][1], f"Public {path} alternative text is stale.")
         require(read_url(urljoin(PROFILE, src)) == asset_bytes[path],
                 f"Public {path} bytes differ from this checkout.")
 
 
-def verify_archived_public(blocks, name, archive_files):
+def verify_archived_public(blocks, name, archive_files, invitation=None):
     from profile_release import archive_prefix
 
     actual = ProfileImages(read_url(PROFILE).decode("utf-8"), True)
@@ -405,10 +422,11 @@ def verify_archived_public(blocks, name, archive_files):
             require(len(next_section) == 1 and position < next_section[0] and
                     not any(position < p < next_section[0] for p, _ in actual.body_text),
                     "Public archived artwork moved away from its text break.")
+        elif slot == "top":
+            require(all(position < p for p, _ in actual.body_text),
+                    "Public archived artwork moved away from the top of the README.")
         else:
-            valid = (all(position < p for p, _ in actual.body_text) if slot == "top"
-                     else all(p < position for p, _ in actual.body_text))
-            require(valid, "Public archived artwork moved away from the page edge.")
+            check_footer_text(actual, position, invitation)
         prefix = archive_prefix(name)
         for src, expected_path in files:
             url = asset_url(src or "", expected_path, True)
@@ -426,8 +444,11 @@ def main():
     root = Path(__file__).resolve().parents[1]
     try:
         selected, blocks, files = current_version(root, os.getenv("PROFILE_RELEASE_BASE") or None)
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        match = FOOTER_INVITATION.search(readme)
+        invitation = match.group() if match else None
         if not selected["archive"]:
-            expected = checked_images((root / "README.md").read_text(encoding="utf-8"))
+            expected = checked_images(readme)
             asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
             check_artwork(asset_bytes)
             check_motion_pixels(asset_bytes)
@@ -440,9 +461,9 @@ def main():
             for attempt in range(3):
                 try:
                     if selected["archive"]:
-                        verify_archived_public(blocks, selected["id"], files)
+                        verify_archived_public(blocks, selected["id"], files, invitation)
                     else:
-                        verify_public(expected, asset_bytes)
+                        verify_public(expected, asset_bytes, invitation)
                     break
                 except (ValueError, OSError) as error:
                     if attempt == 2:

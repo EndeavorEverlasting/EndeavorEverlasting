@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from profile_release import ARCHIVES, CATALOG, REPO, catalog, current_version, encode
 from profile_release import git, read_archive, archive_layout
-from verify_profile_scope import readme_copy
+from verify_profile_scope import REPOSITORIES_URL, readme_copy
 from verify_profile_visuals import PROFILE, ProfileCheckError, verify_archived_public
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +64,26 @@ class ProfileReleaseTests(unittest.TestCase):
                 self.assertEqual(set(git(self.root, "diff", "--name-only").decode().splitlines()),
                                  {"README.md", CATALOG})
                 self.commit(f"Select {version}")
+
+    def test_invitation_survives_rollbacks_with_and_without_a_footer(self):
+        readme = self.root / "README.md"
+        version = catalog(self.root)["active"]["id"]
+        invitation = (f'<p><strong>Explore projects.</strong> Start with the pins below. '
+                      f'<a href="{REPOSITORIES_URL}">Browse all repositories</a></p>')
+        readme.write_text(readme.read_text().rstrip() + "\n\n" + invitation + "\n")
+        prose = readme_copy(readme.read_text())
+        self.commit("Add the repository invitation")
+        for target in ("v02", "v08", version):
+            with self.subTest(version=target):
+                result = self.command("restore", target, "--apply")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(current_version(self.root)[0]["id"], target)
+                text = readme.read_text()
+                self.assertEqual(readme_copy(text), prose)
+                self.assertTrue(text.endswith(invitation + "\n"))
+                if target != "v02":
+                    self.assertTrue(text.split(invitation)[0].rstrip().endswith("</picture>"))
+                self.commit(f"Select {target}")
 
     def test_dirty_and_corrupt_inputs_fail_without_overwriting(self):
         readme = self.root / "README.md"
