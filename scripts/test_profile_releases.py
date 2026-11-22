@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from profile_release import ARCHIVES, CATALOG, REPO, catalog, current_version, encode
 from profile_release import git, read_archive, archive_layout
-from verify_profile_scope import REPOSITORIES_URL, readme_copy
+from verify_profile_scope import FOOTER_INVITATION, REPOSITORIES_URL, readme_copy
 from verify_profile_visuals import PROFILE, ProfileCheckError, verify_archived_public
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,7 +70,8 @@ class ProfileReleaseTests(unittest.TestCase):
         version = catalog(self.root)["active"]["id"]
         invitation = (f'<p><strong>Explore projects.</strong> Start with the pins below. '
                       f'<a href="{REPOSITORIES_URL}">Browse all repositories</a></p>')
-        readme.write_text(readme.read_text().rstrip() + "\n\n" + invitation + "\n")
+        original = FOOTER_INVITATION.sub("", readme.read_text()).rstrip()
+        readme.write_text(original + "\n\n" + invitation + "\n")
         prose = readme_copy(readme.read_text())
         self.commit("Add the repository invitation")
         for target in ("v02", "v08", version):

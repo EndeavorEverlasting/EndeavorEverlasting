@@ -42,9 +42,11 @@ I care about what happens *after* a promising prototype: whether someone else ca
 
 ---
 
-<sub>Building in public where practical. Some operational work stays private to protect people, systems, and organizations. <a href="https://github.com/EndeavorEverlasting?tab=repositories">Browse the work →</a></sub>
+<sub>Building in public where practical. Some operational work stays private to protect people, systems, and organizations.</sub>
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v09/assets/stitch-pulse.png" />
   <img src="assets/profile-releases/v09/assets/stitch-pulse.gif" width="100%" alt="Blue and orange filaments meet as soft pulses branch downward toward the pinned projects." />
 </picture>
+
+<p><strong>Explore the project nexus.</strong> Your next tool may be among the pinned projects below. <a href="https://github.com/EndeavorEverlasting?tab=repositories">Browse all repositories →</a></p>
