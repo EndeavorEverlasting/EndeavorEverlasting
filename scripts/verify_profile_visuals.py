@@ -275,6 +275,21 @@ def check_cosmic_density(image, path):
             f"{path} must retain dark voids, diffuse filament density and compact luminous cores.")
 
 
+def check_bicolor_density(image, path):
+    """Keep visible orange dust and brighter knots alongside the blue network."""
+    pixels = image.width * image.height
+    orange = blue = knots = 0
+    for count, (red, green, blue_channel) in image.getcolors(maxcolors=pixels):
+        if red >= 44 and red-green >= 12 and green-blue_channel >= 5:
+            orange += count
+            if red >= 118:
+                knots += count
+        if blue_channel >= 48 and blue_channel-red >= 16 and green-red >= 8:
+            blue += count
+    require(orange >= 0.04*pixels and knots >= 0.012*pixels and blue >= 0.20*pixels,
+            f"{path} must show blue filaments, orange dust and orange knots at phone width.")
+
+
 def check_footer_handoff(changes):
     """Both outgoing pulses must reach the bottom in downward order."""
     width, height = changes[0].size
@@ -295,19 +310,21 @@ def check_motion_pixels(asset_bytes):
     """Measure the actual GIF frames after browser-like phone-scale resampling."""
     from PIL import Image, ImageChops, ImageSequence
 
-    def motion_size(frame):
-        return frame.convert("L").resize(
+    def phone_image(frame):
+        return frame.convert("RGB").resize(
             (255, round(frame.height / frame.width * 255)), Image.Resampling.LANCZOS
         )
 
     for path in MOTION:
         with Image.open(BytesIO(asset_bytes[path])) as gif:
-            frames = [motion_size(frame) for frame in ImageSequence.Iterator(gif)]
+            colored_frames = [phone_image(frame) for frame in ImageSequence.Iterator(gif)]
+        frames = [frame.convert("L") for frame in colored_frames]
         require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
         check_cosmic_density(frames[0], path)
         still = path.removesuffix(".gif") + ".png"
         with Image.open(BytesIO(asset_bytes[still])) as image:
-            check_cosmic_density(motion_size(image), still)
+            still_rgb = phone_image(image)
+        check_cosmic_density(still_rgb.convert("L"), still)
         deltas = []
         for first, second in zip(frames, frames[1:] + frames[:1]):
             changes = ImageChops.difference(first, second).histogram()
@@ -339,6 +356,8 @@ def check_motion_pixels(asset_bytes):
             require(sum(advance > 1 for advance in advances) >= 3 and
                     sum(advance > 1 for advance in advances) > sum(advance < -1 for advance in advances),
                     f"{path} must show light traveling down the branches.")
+        check_bicolor_density(colored_frames[0], path)
+        check_bicolor_density(still_rgb, still)
 
 
 def check_review(review, release_bytes):

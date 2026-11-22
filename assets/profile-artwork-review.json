@@ -1,25 +1,25 @@
 {
   "version": 1,
   "observations": {
-    "cosmic_density": "Overlapping dust and gas layers soften the filament mesh and widen at neighboring clusters.",
-    "dark_voids": "Irregular dark pockets separate bright reaches in all three panels, with no exposed geometric guides.",
-    "luminous_clusters": "Ice-blue clusters and small coral accents emerge from diffuse blue and teal dust.",
-    "vertical_continuity": "The banner emits at the common opening x-coordinate and the directed route crosses both text seams before branching toward the bottom.",
-    "phone_legibility": "At 255 px the three panels retain readable clusters, dark pockets and two separately visible footer routes.",
+    "cosmic_density": "Diffuse orange dust sits behind filament ribbons, bright knots and fine sparks. Blue strands interlace with the orange layers at shared points.",
+    "dark_voids": "Open space remains between strands. Orange dust gathers along paths while leaving dark pockets in all three panels.",
+    "luminous_clusters": "Bright orange and ice-blue clusters emerge from their surrounding dust at different depths.",
+    "vertical_continuity": "The banner meets the cool opening route. A continuous orange filament travels next to it and across both text seams.",
+    "phone_legibility": "At 255 px both colors read in each GIF and still, and the outgoing pulses still travel through both footer branches.",
     "fibonacci_structure": "The original banner spiral remains. Density blur scales and motion period draw from Fibonacci values, with 21 frames at 130 ms.",
     "handoff_ontology": "The diagram\u2019s repeatable-workflow output diffuses into the growth field and divides into two reaching branches below the closing copy.",
     "continuous_motion": "Each GIF repeats indefinitely with controlled last-to-first transitions and a dimension-matched reduced-motion still.",
-    "palette": "The navy shadows, teal filaments and sparse coral knots repeat the banner and avatar accents. The banner\u2019s tinted output blends into the same hue family.",
-    "pinned_handoff": "Positive light travels from the fork through both paths to the lower quarter points with staggered timing and fades at the edge toward Pinned."
+    "palette": "Blue and orange tracks bring the banner and avatar colors into every frame. The orange web spans broad dust, midtone filaments and brighter knots.",
+    "pinned_handoff": "Cool pulses travel down both routes with staggered timing while orange dust follows the forks and fades toward Pinned."
   },
   "sha256": {
     "assets/hero.svg": "d0a1af17ab2fd408cd5d6cb9c63a403ad0329474870f82aed64f32892220a49e",
-    "assets/stitch-descent.gif": "30e9445543d84ecd3f37c9c0ed88e0ec67fa54d4e06f11b2b9cf031b5f30324a",
-    "assets/stitch-descent.png": "4d2ef08997463f24f873c68369354c5fe513cab9da21ee72bca5058542b4754e",
-    "assets/stitch-pulse.gif": "3b2c5578822f9ff272b11ef0ede0f3fc7e45f32caae5cb39222c9b7b0bc07418",
-    "assets/stitch-pulse.png": "5739ca4d89012fa9ad0f035823f71d903dc5540432e66cbf690dd68d59439525",
-    "assets/stitch-resume.gif": "99090d419c1895940783d0b76b1fc94f64d5be629462b837f7589342e01fde87",
-    "assets/stitch-resume.png": "a6a89c4a9fd6f1f5ae39bbf12cb89fb705d46b53c240a1f52d08987e37c10824",
-    "scripts/render_profile_motion.py": "59e7acf1122f0118d4f885c45d6f43cbcb60a9db5bca8b04ebb2084bb0af4e59"
+    "assets/stitch-descent.gif": "7cc770a6e33b4f20fb089da96a6df5dc63a07d4b074f1e0b149ebc62456184f5",
+    "assets/stitch-descent.png": "3b2733b52e816fab36b4a01b5bb1960d3b22ca60c9c5457331db76ee2e1e6661",
+    "assets/stitch-pulse.gif": "3894feece12e713bb2391e3fc86f87a4c299d724e7237946dcee7202acfb9747",
+    "assets/stitch-pulse.png": "8f81a5671e9535fb367107e014b0c265bdd9b00eba18f4551c83de12a1cd0086",
+    "assets/stitch-resume.gif": "3a6a9d814bfa8716a2b95e25c95439a5c8ffa119e827f203daf51ca07679dee6",
+    "assets/stitch-resume.png": "79e1407c1db056cad9b8fd31882b1c84a8c3b80b123c97b013800125e2ce27a5",
+    "scripts/render_profile_motion.py": "4a1467c389bb30d9a27c4fdcb028b24abecc81fe45b9d870b28a3ff6a502e895"
   }
 }
