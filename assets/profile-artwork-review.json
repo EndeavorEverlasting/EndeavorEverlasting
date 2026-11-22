@@ -1,17 +1,23 @@
 {
   "version": 1,
   "observations": {
-    "tapered_branches": "The four curved trunks carry attached forks and thinner secondary branches with smooth junctions.",
-    "depth_and_material": "Lit curved surfaces are in front of dim recessed filaments. The hourglass housing occludes the trunks and the glass bulbs show depth.",
-    "vertical_continuity": "Three sampled moments in both encoded GIFs move downward. At the copy break the four matching ends preserve position, width and material.",
-    "phone_legibility": "At a 255 px image width, the four central trunks and their major forks stay distinct in the two panels.",
-    "no_sketch_edges": "The visible trunks are shaded surfaces with antialiased silhouettes and no pencil, crayon or dry-brush texture."
+    "tapered_branches": "Curved teal and copper trunks carry attached forks and finer secondary branches.",
+    "depth_and_material": "Concentric cut rings and quarter-circle inlays sit behind the lit curved branches. The inset glass and metallic needle cross the branch plane.",
+    "vertical_continuity": "The four trunk positions, widths and color order carry across the introduction. The footer receives the continuation endpoints.",
+    "phone_legibility": "At a 255 px image width, primary forks and the hourglass can be distinguished in all three panels.",
+    "no_sketch_edges": "Visible trunks and primary forks have antialiased silhouettes and shaded volume.",
+    "fibonacci_structure": "Exact quarter circles, nested ring radii, branching cadence, depth layers and GIF timing share the Fibonacci sequence.",
+    "handoff_ontology": "The banner names fragmented handoffs and repeatable workflow. The animated needle stitches the convergence, stable strands rebranch, and the durational hourglass closes the page.",
+    "continuous_motion": "Two phase-wrapped descents and a breathing footer each have 21 frames at 130 ms and replay indefinitely. Each has a matching reduced-motion still."
   },
   "sha256": {
-    "assets/stitch-descent.gif": "bb6abe14ecccb79e8813e0d46888590580a4cbbbf3bc95439271d84ccdd441a6",
-    "assets/stitch-descent.png": "e1adcf4e6f938e60badc039dd057c92cc1622cc935910d5fe0986d1f30ec0784",
-    "assets/stitch-resume.gif": "f042ab4867339d08b2f6606825e5642b2d4100c6d894996c919686a98fa8c488",
-    "assets/stitch-resume.png": "c31689c4efae2b9b02000342e949c55e6a5300d1ef22764a3d9d79dcebdd65e6",
-    "scripts/render_profile_motion.py": "5b3e27b4946d929d58b5caf99a5b72c42be5c0cf20ab429d422f1411973550d5"
+    "assets/hero.svg": "5ab395133d1e477c0baa4489efbcf789ee9e64ff4db398f168d41efbfa378b65",
+    "assets/stitch-descent.gif": "48528d54d888791a97c3c28b06073cb18b83bbbe542cdf35e0994ce9bb3702b0",
+    "assets/stitch-descent.png": "1114da39e76e2b7babed66b79373157f9d5789a6775c0b330da5146c5d0cd942",
+    "assets/stitch-pulse.gif": "fa16cbca01cffc513db0890bf148eed664f23a825c6543274fba589f4e887579",
+    "assets/stitch-pulse.png": "32533127b15d0e0724407806923b20060e0f3f9cdf4f580fc3f4ae19f3a45774",
+    "assets/stitch-resume.gif": "70d7fa66b49c430c8b0b899481f7e5aff62338b20e5578dd089e892a50ac34e9",
+    "assets/stitch-resume.png": "d4c02ae4c040a81a031927a408b54a35ee30a4ac7872be12e24150d38c145ecd",
+    "scripts/render_profile_motion.py": "0051b795ff28abd2c0c8130659f111b2f5de04811aac54c1c85c354f2b8ec0b2"
   }
 }

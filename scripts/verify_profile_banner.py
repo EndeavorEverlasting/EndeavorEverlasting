@@ -27,7 +27,16 @@ for label in ("THREADING COMPLEXITY", "INTO STABILITY", "Turning everyday fricti
     assert_true(texts.count(label) == 1, f"Headline/subhead missing or duplicated: {label}")
 assert_true("Make complexity repeatable" not in svg and "hold up" not in svg, "Stale brand wording")
 
-# Profile copy reflows as text, independently of the archived banner artwork.
+# The existing banner and new panels share the same true quarter-circle geometry.
+spiral = root.find(".//*[@id='fibonacci-spiral']")
+arcs = re.findall(r"A\s+(\d+)\s+(\d+)", spiral.get("d", "") if spiral is not None else "")
+assert_true(arcs == [(str(r), str(r)) for r in (13, 21, 34, 55, 89)],
+            "Banner spiral must retain exact Fibonacci quarter-circle radii")
+flow = root.find(".//*[@id='flow-diagram']")
+assert_true(flow.get("aria-label") == "Fragmented handoffs stitched into one repeatable workflow",
+            "Banner must retain the fragmented-to-repeatable workflow semantics")
+
+# Profile copy reflows as text alongside the banner artwork.
 assert_true("# Threading complexity into stability" in readme, "Profile headline must be readable text")
 assert_true("Turning everyday friction into durable systems." in readme, "Profile subhead is missing")
 assert_true("AgentSwitchboard" not in readme, "Retired project is still promoted")

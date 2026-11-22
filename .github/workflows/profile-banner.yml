@@ -3,23 +3,7 @@ name: Profile banner integrity
 on:
   push:
     branches: [main]
-    paths:
-      - "assets/**"
-      - "README.md"
-      - "scripts/verify_profile_banner.py"
-      - "scripts/verify_profile_visuals.py"
-      - "scripts/test_profile_visuals.py"
-      - "scripts/render_profile_motion.py"
-      - ".github/workflows/profile-banner.yml"
   pull_request:
-    paths:
-      - "assets/**"
-      - "README.md"
-      - "scripts/verify_profile_banner.py"
-      - "scripts/verify_profile_visuals.py"
-      - "scripts/test_profile_visuals.py"
-      - "scripts/render_profile_motion.py"
-      - ".github/workflows/profile-banner.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,9 +14,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Check change scope
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          script=scripts/verify_profile_scope.py
+          if git cat-file -e "$BASE_SHA:$script" 2>/dev/null; then
+            git show "$BASE_SHA:$script" > "$RUNNER_TEMP/verify_profile_scope.py"
+            script="$RUNNER_TEMP/verify_profile_scope.py"
+          fi
+          python "$script" --range "$BASE_SHA" "$HEAD_SHA"
+      - name: Install GIF decoder
+        run: python -m pip install 'Pillow>=11,<14'
       - name: Verify profile banner and responsive layout contract
         run: python scripts/verify_profile_banner.py
       - name: Verify profile artwork and motion in this checkout

@@ -7,6 +7,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 import re
+from statistics import median
 from struct import unpack
 import time
 from urllib.parse import urljoin, urlsplit
@@ -14,24 +15,31 @@ from urllib.request import Request, urlopen
 
 PROFILE = "https://github.com/EndeavorEverlasting"
 REPO = "EndeavorEverlasting/EndeavorEverlasting"
+BANNER = "assets/hero.svg"
 OPENING = "assets/stitch-descent.gif"
 CONTINUATION = "assets/stitch-resume.gif"
-MOTION = {OPENING: 0.39, CONTINUATION: 0.30}
-ASSETS = tuple(path for gif in MOTION for path in (gif, gif.removesuffix(".gif") + ".png"))
+PULSE = "assets/stitch-pulse.gif"
+MOTION = {OPENING: 0.39, CONTINUATION: 0.30, PULSE: 0.27}
+ASSETS = (BANNER, *(path for gif in MOTION for path in (gif, gif.removesuffix(".gif") + ".png")))
 MILESTONES = (
     "Threading complexity into stability",
     "I'm the builder behind",
     "I care about what happens",
     "Selected work",
+    "Building in public where practical.",
 )
 REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input",
              "link", "meta", "param", "source", "track", "wbr"}
 MAX_GIF_BYTES = 250_000
+FRAME_COUNT = 21
+FRAME_MS = 130
+LOOP_APPLICATIONS = (b"NETSCAPE2.0", b"ANIMEXTS1.0")
 ARTWORK_REVIEW = "assets/profile-artwork-review.json"
 RENDERER = "scripts/render_profile_motion.py"
 ARTWORK_CRITERIA = ("tapered_branches", "depth_and_material", "vertical_continuity",
-                    "phone_legibility", "no_sketch_edges")
+                    "phone_legibility", "no_sketch_edges", "fibonacci_structure",
+                    "handoff_ontology", "continuous_motion")
 
 
 class ProfileCheckError(ValueError):
@@ -51,6 +59,7 @@ class ProfileImages(HTMLParser):
         self.hidden_elements = []
         self.images = []
         self.pictures = []
+        self.body_text = []
         self.picture = None
         self.positions = {text: [] for text in MILESTONES}
         self.feed(source)
@@ -84,8 +93,11 @@ class ProfileImages(HTMLParser):
     def handle_data(self, data):
         if not self.live or self.hidden_elements or not any(self.articles):
             return
+        visible = data.strip()
+        if visible:
+            self.body_text.append((self.getpos(), visible))
         for text in MILESTONES:
-            if data.strip().startswith(text):
+            if visible.startswith(text):
                 self.positions[text].append(self.getpos())
 
     def handle_startendtag(self, tag, attrs):
@@ -118,16 +130,23 @@ def checked_images(source, *, live=False):
         source = re.sub(r"(?<!\x60)(\x60+)(?!\x60).*?(?<!\x60)\1(?!\x60)", "", source)
     page = ProfileImages(source, live)
     if not live:
-        markers = (f"# {MILESTONES[0]}", MILESTONES[1], MILESTONES[2], f"### {MILESTONES[3]}")
+        markers = (f"# {MILESTONES[0]}", MILESTONES[1], MILESTONES[2],
+                   f"### {MILESTONES[3]}", f"<sub>{MILESTONES[4]}")
         for text, marker in zip(MILESTONES, markers):
             page.positions[text] = [(i, 0) for i, line in enumerate(source.splitlines(), 1)
                                     if line.startswith(marker)]
 
-    require(len(page.images) == len(MOTION) and len(page.pictures) == len(MOTION),
-            "Each of the two profile illustrations must have one visible picture and image.")
-    images = {}
+    require(len(page.images) == len(MOTION) + 1 and len(page.pictures) == len(MOTION),
+            "The profile needs one banner and three motion pictures.")
+    banner_position, banner, banner_sources = page.images[0]
+    banner_src = asset_url(banner.get("src") or "", BANNER, live)
+    banner_alt = (banner.get("alt") or "").strip()
+    require(banner_sources is None and banner.get("width") == "100%" and
+            "height" not in banner and banner_alt and "hidden" not in banner,
+            "The top banner must be visible and fill the README width.")
+    images = {BANNER: (banner_src, banner_alt)}
     positions = {}
-    for (position, attrs, sources), path in zip(page.images, MOTION):
+    for (position, attrs, sources), path in zip(page.images[1:], MOTION):
         src = asset_url(attrs.get("src") or "", path, live)
         require(attrs.get("width") == "100%" and "height" not in attrs,
                 f"{path} must fill the README width with its natural aspect ratio.")
@@ -144,10 +163,19 @@ def checked_images(source, *, live=False):
         positions[path] = position
 
     require(all(len(page.positions[text]) == 1 for text in MILESTONES),
-            "Profile headline, two introduction paragraphs and Selected work must remain visible.")
-    headline, first, second, work = (page.positions[text][0] for text in MILESTONES)
-    require(positions[OPENING] < headline < first < positions[CONTINUATION] < second < work,
-            "Place the opening first and the continuation between the introduction paragraphs.")
+            "Profile headline, introduction, Selected work and closing copy must remain visible.")
+    headline, first, second, work, closing = (page.positions[text][0] for text in MILESTONES)
+    require(banner_position < positions[OPENING] < headline < first <
+            positions[CONTINUATION] < second < work < closing < positions[PULSE],
+            "Place the banner, opener, intro, continuation, body and pulse in reading order.")
+    if live:
+        # Readable copy after the footer would break the visual bookend.
+        article_text = [position for position, _ in page.body_text]
+        require(not article_text or max(article_text) < positions[PULSE],
+                "The pulsing artwork must be the last visible README content.")
+    else:
+        tail = re.split(r"</picture>", source, flags=re.I)[-1]
+        require(not tail.strip(), "The pulsing artwork must be the last README content.")
     return images
 
 
@@ -173,6 +201,7 @@ def gif_timing(content):
         take(3 * (2 << (flags & 7)))
 
     frames = duration = delay = 0
+    loop_seen = False
     while (block := take(1)) != b";":
         if block == b",":
             flags = take(9)[-1]
@@ -181,6 +210,7 @@ def gif_timing(content):
             require(2 <= take(1)[0] <= 8, "Profile GIF has an invalid LZW code size.")
             skip_sub_blocks()
             require(delay >= 20, "Profile GIF requires explicit browser-safe frame delays.")
+            require(delay == FRAME_MS, "Profile GIF must keep a uniform Fibonacci frame delay.")
             frames += 1
             duration += delay
             delay = 0
@@ -192,14 +222,20 @@ def gif_timing(content):
                 require(take(1) == b"\0", "Invalid GIF frame timing terminator.")
             elif extension == b"\xff":
                 application = take(take(1)[0])
-                require(application not in (b"NETSCAPE2.0", b"ANIMEXTS1.0"),
-                        "Profile GIF must play once without a loop extension.")
-                skip_sub_blocks()
+                if application in LOOP_APPLICATIONS:
+                    require(not loop_seen and frames == 0,
+                            "Profile GIF requires exactly one loop declaration before the frames.")
+                    require(take(5) == b"\x03\x01\x00\x00\x00",
+                            "Profile GIF must repeat indefinitely.")
+                    loop_seen = True
+                else:
+                    skip_sub_blocks()
             else:
                 skip_sub_blocks()
         else:
             raise ProfileCheckError("Profile GIF contains an invalid GIF block.")
-    require(frames > 1 and 0 < duration < 5000, "Profile GIF must animate for under five seconds.")
+    require(loop_seen, "Profile GIF must repeat indefinitely.")
+    require(frames == FRAME_COUNT, "Profile GIF must contain the complete 21-frame cycle.")
     return frames, duration
 
 
@@ -212,7 +248,7 @@ def read_url(url):
 
 def check_artwork(asset_bytes):
     require(sum(len(asset_bytes[path]) for path in MOTION) <= MAX_GIF_BYTES,
-            "The two GIFs together exceed the 250 kB budget.")
+            "The three GIFs together exceed the 250 kB budget.")
     for path, minimum_aspect in MOTION.items():
         animation = asset_bytes[path]
         frames, duration = gif_timing(animation)
@@ -224,7 +260,60 @@ def check_artwork(asset_bytes):
                 len(still) >= 24 and unpack(">II", still[16:24]) == (width, height),
                 f"{path} needs a PNG still with the same dimensions.")
         print(f"PASS {path}: {width}×{height}, {frames} frames, {duration} ms, "
-              f"{len(animation)} bytes, no loop", flush=True)
+              f"{len(animation)} bytes, infinite loop", flush=True)
+
+
+def check_motion_pixels(asset_bytes):
+    """Measure the actual GIF frames after browser-like phone-scale resampling."""
+    from PIL import Image, ImageChops, ImageSequence
+
+    def motion_size(frame):
+        return frame.convert("L").resize(
+            (255, round(frame.height / frame.width * 255)), Image.Resampling.LANCZOS
+        )
+
+    for path in MOTION:
+        with Image.open(BytesIO(asset_bytes[path])) as gif:
+            frames = [motion_size(frame) for frame in ImageSequence.Iterator(gif)]
+        deltas = []
+        for first, second in zip(frames, frames[1:] + frames[:1]):
+            changes = ImageChops.difference(first, second).histogram()
+            deltas.append(sum(level*count for level, count in enumerate(changes)))
+        require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
+        typical = median(deltas[:-1])
+        minimum = 900 if path == PULSE else 1600
+        require(typical >= minimum, f"{path} has no legible motion at phone width.")
+        require(0 < deltas[-1] <= typical * 2,
+                f"{path} visibly jumps or holds at the repeat seam.")
+        if path == PULSE:
+            cx, cy = frames[0].width//2, frames[0].height//2
+            roi = (cx-6, cy-4, cx+6, cy+4)
+
+            def core_light(image):
+                return sum(level*count for level, count in enumerate(image.crop(roi).histogram()))
+
+            require(core_light(frames[0]) - core_light(frames[len(frames)//2]) > 1900,
+                    "Footer chamber must visibly brighten and dim.")
+        else:
+            # Track the positive-light band against the darkest observed local
+            # value. Check that it crosses a middle-height band downward.
+            floor = frames[0]
+            for frame in frames[1:]:
+                floor = ImageChops.darker(floor, frame)
+            middle = (0, round(frames[0].height*0.28), 255, round(frames[0].height*0.68))
+            centers = []
+            for frame in frames:
+                band = ImageChops.subtract(frame, floor).crop(middle)
+                pixels = band.tobytes()
+                rows = [sum(max(0, value-16) for value in pixels[i:i+255])
+                        for i in range(0, len(pixels), 255)]
+                centers.append(sum(i*weight for i, weight in enumerate(rows))/sum(rows)
+                               if sum(rows) > 240 else None)
+            advances = [b-a for a, b in zip(centers, centers[1:] + centers[:1])
+                        if a is not None and b is not None and abs(b-a) <= 12]
+            require(sum(advance > 1 for advance in advances) >= 3 and
+                    sum(advance > 1 for advance in advances) > sum(advance < -1 for advance in advances),
+                    f"{path} must show light traveling down the branches.")
 
 
 def check_review(review, release_bytes):
@@ -234,10 +323,10 @@ def check_review(review, release_bytes):
     notes = review.get("observations")
     require(isinstance(notes, dict) and set(notes) == set(ARTWORK_CRITERIA) and
             all(isinstance(note, str) and note.strip() for note in notes.values()),
-            "Record all five visual observations in " + ARTWORK_REVIEW + ".")
+            "Record every visual observation in " + ARTWORK_REVIEW + ".")
     digests = review.get("sha256")
     require(isinstance(digests, dict) and set(digests) == set(release_bytes),
-            "The visual review must cover both GIFs, both stills and the renderer.")
+            "The visual review must cover the banner, all six animated or still files and the renderer.")
     for path, content in release_bytes.items():
         require(digests[path] == sha256(content).hexdigest(),
                 f"{path} differs from the reviewed version. See assets/profile-artwork.md.")
@@ -260,6 +349,7 @@ def main():
         expected = checked_images((root / "README.md").read_text(encoding="utf-8"))
         asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
         check_artwork(asset_bytes)
+        check_motion_pixels(asset_bytes)
         review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
         check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
         if args.live:
