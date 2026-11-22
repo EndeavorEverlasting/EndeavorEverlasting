@@ -5,6 +5,7 @@ from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import re
 from statistics import median
@@ -355,22 +356,65 @@ def verify_public(expected_images, asset_bytes):
                 f"Public {path} bytes differ from this checkout.")
 
 
+def verify_archived_public(blocks, name, archive_files):
+    from profile_release import archive_prefix
+
+    actual = ProfileImages(read_url(PROFILE).decode("utf-8"), True)
+    expected = [(slot, ProfileImages(block, False).images[0])
+                for slot, group in blocks.items() for block in group]
+    require(len(actual.images) == len(expected), "Public profile has the wrong archived layout.")
+    for (slot, (_, artwork, stills)), (position, image, sources) in zip(expected, actual.images):
+        require(image.get("alt") == artwork.get("alt") and image.get("width") == "100%"
+                and "height" not in image and "hidden" not in image, "Archived artwork presentation changed.")
+        require(len(sources or []) == len(stills or []), "Archived reduced-motion sources changed.")
+        files = [(image.get("src"), artwork["src"])]
+        for (_, actual_source), (_, source) in zip(sources or [], stills or []):
+            require(actual_source.get("media") == source.get("media"), "Archived media query changed.")
+            files.append((actual_source.get("srcset"), source["srcset"]))
+        if slot in ("after_intro", "before_work"):
+            marker = MILESTONES[2] if slot == "after_intro" else MILESTONES[3]
+            next_section = actual.positions[marker]
+            require(len(next_section) == 1 and position < next_section[0] and
+                    not any(position < p < next_section[0] for p, _ in actual.body_text),
+                    "Public archived artwork moved away from its text break.")
+        else:
+            valid = (all(position < p for p, _ in actual.body_text) if slot == "top"
+                     else all(p < position for p, _ in actual.body_text))
+            require(valid, "Public archived artwork moved away from the page edge.")
+        prefix = archive_prefix(name)
+        for src, expected_path in files:
+            url = asset_url(src or "", expected_path, True)
+            content_path = expected_path.removeprefix(prefix + "/")
+            require(read_url(urljoin(PROFILE, url)) == archive_files[content_path],
+                    f"Public {expected_path} differs from the archived release.")
+
+
 def main():
+    from profile_release import current_version
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="Also verify the public GitHub profile.")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     try:
-        expected = checked_images((root / "README.md").read_text(encoding="utf-8"))
-        asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
-        check_artwork(asset_bytes)
-        check_motion_pixels(asset_bytes)
-        review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
-        check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
+        selected, blocks, files = current_version(root, os.getenv("PROFILE_RELEASE_BASE") or None)
+        if not selected["archive"]:
+            expected = checked_images((root / "README.md").read_text(encoding="utf-8"))
+            asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
+            check_artwork(asset_bytes)
+            check_motion_pixels(asset_bytes)
+            review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
+            check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
+        else:
+            asset_bytes = {path: data for path, data in files.items() if path != "README.md"}
+        print(f"PASS active profile version: {selected['id']}")
         if args.live:
             for attempt in range(3):
                 try:
-                    verify_public(expected, asset_bytes)
+                    if selected["archive"]:
+                        verify_archived_public(blocks, selected["id"], files)
+                    else:
+                        verify_public(expected, asset_bytes)
                     break
                 except (ValueError, OSError) as error:
                     if attempt == 2:
@@ -378,8 +422,8 @@ def main():
                     print(f"Public profile check attempt {attempt + 1}: {error}", flush=True)
                     time.sleep(4)
             print(f"PASS public profile: {PROFILE}")
-            for path in ASSETS:
-                print(f"{path} SHA-256 {sha256(asset_bytes[path]).hexdigest()}")
+            for path, content in asset_bytes.items():
+                print(f"{path} SHA-256 {sha256(content).hexdigest()}")
     except (ValueError, OSError) as error:
         parser.exit(1, f"FAIL: {error}\n")
 

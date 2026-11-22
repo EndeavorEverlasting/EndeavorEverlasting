@@ -10,6 +10,7 @@ from render_profile_motion import (
     BANNER_EXIT_X, BANNER_WIDTH, ENTRY_X, FIBONACCI, FLOW, FOOTER_CENTER,
     FRAME_MS, FRAMES, NEBULAE, PANELS, WIDTH, topology,
 )
+from profile_release import archive_prefix, catalog
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
@@ -22,7 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProfileVisualTests(unittest.TestCase):
     def setUp(self):
-        self.readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        releases = catalog(ROOT)
+        latest = max(releases["versions"], key=lambda version: int(version[1:]))
+        self.readme = (ROOT / archive_prefix(latest) / "README.md").read_text(encoding="utf-8")
         self.expected = checked_images(self.readme)
         self.assets = {path: (ROOT / path).read_bytes() for path in ASSETS}
         self.urls = {path: f"/{REPO}/raw/main/{path}" for path in ASSETS}

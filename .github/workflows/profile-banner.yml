@@ -36,7 +36,9 @@ jobs:
         run: python -m pip install 'Pillow>=11,<14'
       - name: Verify profile banner and responsive layout contract
         run: python scripts/verify_profile_banner.py
-      - name: Verify profile artwork and motion in this checkout
+      - name: Verify the release catalog, profile artwork and motion
+        env:
+          PROFILE_RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python scripts/verify_profile_visuals.py
       - name: Test rollout regressions
         run: python -m unittest discover -s scripts -v

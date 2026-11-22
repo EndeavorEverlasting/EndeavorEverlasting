@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="title desc">
+  <title id="title">EndeavorEverlasting — Threading complexity into stability</title>
+  <desc id="desc">Endeavor Everlasting: Threading Complexity Into Stability. I connect people, processes, and tools. Teal and coral branches approach a seam from the left. A needle stitches the edges together and the joined workflow reaches several endpoints. A faint Fibonacci spiral runs from the fragmented handoffs to the repeatable workflow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111a24"/><stop offset="1" stop-color="#070d14"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fd8065"/><stop offset="1" stop-color="#ffbd7c"/></linearGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" stroke="#718396" stroke-width="0.55" opacity="0.16" fill="none"/></pattern>
+    <clipPath id="clip"><rect width="1200" height="390" rx="18"/></clipPath>
+    <linearGradient id="needle-steel" x1="910" y1="189" x2="944" y2="141" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#58adab"/>
+      <stop offset=".65" stop-color="#85e8dc"/>
+      <stop offset="1" stop-color="#b2f7ec"/>
+    </linearGradient>
+    <linearGradient id="spiral-thread" x1="0" y1="0" x2="102" y2="-34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#73aaa9"/>
+      <stop offset=".52" stop-color="#537e8b"/>
+      <stop offset="1" stop-color="#ae7567"/>
+    </linearGradient>
+    <linearGradient id="spiral-caption-fade" x1="0" y1="95" x2="0" y2="117" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".27" stop-color="#222"/>
+      <stop offset=".73" stop-color="#222"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="spiral-behind-caption" x="800" y="40" width="320" height="258" maskUnits="userSpaceOnUse">
+      <rect x="800" y="40" width="320" height="258" fill="#fff"/>
+      <rect x="803" y="95" width="192" height="22" fill="url(#spiral-caption-fade)"/>
+    </mask>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="1200" height="390" fill="url(#bg)"/>
+    <rect width="1200" height="390" fill="url(#grid)"/>
+    <rect x="0" y="0" width="8" height="390" fill="url(#accent)"/>
+    <path d="M 0 0 H 1200" stroke="#36485a" opacity=".5"/>
+    <g font-family="Arial, Helvetica, sans-serif">
+      <!-- An hourglass replaces the former checkmark: long-horizon durability. -->
+      <rect id="hourglass-badge" x="54" y="40" width="32" height="32" rx="9" fill="#fe936c"/>
+      <path d="M 65 47 H 75 M 65 65 H 75 M 66 47 C 66 53 74 53 74 56 C 74 59 66 59 66 65 M 74 47 C 74 53 66 53 66 56 C 66 59 74 59 74 65" fill="none" stroke="#101b25" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="101" y="62" fill="#edf3f2" font-size="17" font-weight="700" letter-spacing="2.6">ENDEAVOR / EVERLASTING</text>
+      <text x="56" y="127" fill="#9cabbc" font-size="13" font-weight="700" letter-spacing="4">IT OPERATIONS  /  AGENTIC WORKFLOWS  /  AUTOMATION</text>
+      <text x="52" y="208" fill="#f7faf7" font-size="56" font-weight="800" letter-spacing="-2.6">THREADING COMPLEXITY</text>
+      <text x="52" y="279" fill="url(#accent)" font-size="76" font-weight="800" letter-spacing="-2.9">INTO STABILITY</text>
+      <path d="M 56 312 H 697" stroke="#465467" stroke-width="1"/>
+      <text x="56" y="345" fill="#edf3f2" font-size="19" font-weight="700" letter-spacing=".15">Turning everyday friction into durable systems.</text>
+      <text x="56" y="370" fill="#9fb3c4" font-size="15" font-weight="500" letter-spacing=".16">I connect people, processes, and tools.</text>
+      <text x="1128" y="354" fill="#94a9bb" text-anchor="end" font-size="11" font-weight="700" letter-spacing="2">BUILD  /  TEST  /  PROVE</text>
+    </g>
+    <!-- Translucent HUD behind the headline. Opaque paths stay inside the right-hand artwork. -->
+    <g id="flow-diagram" aria-label="Fragmented handoffs stitched into one repeatable workflow">
+      <circle cx="920" cy="191" r="151" fill="#15283a" opacity=".72"/>
+      <!-- Exact quarter-circles with Fibonacci radii 13, 21, 34, 55, and 89.
+           A uniform scale and rotation place the spiral between the two captions. -->
+      <g mask="url(#spiral-behind-caption)" aria-hidden="true">
+        <path id="fibonacci-spiral"
+              d="M 0 0 A 13 13 0 0 0 13 -13 A 21 21 0 0 0 -8 -34 A 34 34 0 0 0 -42 0
+                 A 55 55 0 0 0 13 55 A 89 89 0 0 0 102 -34"
+              transform="matrix(0.705882353 1.500000000 -1.500000000 0.705882353 954 124)"
+              fill="none" stroke="url(#spiral-thread)" stroke-width="0.9772"
+              stroke-opacity=".56" stroke-linecap="round"/>
+      </g>
+
+      <g id="handoffs" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke="#85e8dc">
+          <path id="upper-thread" d="M 811 151 H 832 L 847 164 H 858
+                                      M 871 170 L 882 178 L 891 183" stroke-width="3.25"/>
+          <path d="M 821 132 H 838 L 854 147 V 164
+                   M 813 177 H 833 L 848 164" stroke-width="2.65"/>
+          <g fill="#112330" stroke-width="2.15">
+            <circle cx="821" cy="132" r="4.6"/>
+            <circle cx="811" cy="151" r="5.4"/>
+            <circle cx="813" cy="177" r="4.6"/>
+          </g>
+        </g>
+        <g stroke="#ff9978">
+          <path id="lower-thread" d="M 810 244 H 832 L 847 231 H 858
+                                      M 871 226 L 882 219 L 891 215" stroke-width="3.25"/>
+          <path d="M 813 218 H 833 L 848 231
+                   M 822 263 H 841 L 854 250 V 231" stroke-width="2.65"/>
+          <g fill="#19232c" stroke-width="2.15">
+            <circle cx="813" cy="218" r="4.6"/>
+            <circle cx="810" cy="244" r="5.4"/>
+            <circle cx="822" cy="263" r="4.6"/>
+          </g>
+        </g>
+      </g>
+
+      <g id="seam" aria-label="The needle stitches two edges together" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M891 183 L903 174 H1018 V189 H961 L945 188 L925 187 L909 189 Z" fill="#18353e" opacity=".95"/>
+        <path d="M891 215 L903 212 L919 213 L942 211 H1018 V226 H903 Z" fill="#392e31" opacity=".9"/>
+        <path d="M891 183 L909 189 L925 187 L945 188 L961 189 H1018"
+              fill="none" stroke="#85e8dc" stroke-width="2.3"/>
+        <path d="M891 215 L903 212 L919 213 L942 211 H1018"
+              fill="none" stroke="#ff9978" stroke-width="2.3"/>
+        <path d="M919 213 Q920 200 928 187 M940 211 Q941 200 949 188
+                 M960 211 Q961 200 969 189 M980 211 Q981 200 989 189 M1000 211 Q1001 200 1009 189"
+              fill="none" stroke="#cf8a71" stroke-width="1.4" opacity=".52"/>
+        <path id="stitches" d="M928 187 Q935 199 940 211 M949 188 Q955 200 960 211
+                              M969 189 Q975 200 980 211 M989 189 Q995 200 1000 211
+                              M1009 189 Q1016 200 1018 211"
+              fill="none" stroke="#ff9978" stroke-width="2.75"/>
+      </g>
+
+      <g id="needle-hub" aria-label="The needle draws the first stitch">
+        <path id="needle-coral-thread"
+              d="M940 142 C927 130 911 133 904 145 C897 155 900 169 906 181
+                 C910 188 913 199 919 212"
+              fill="none" stroke="#ff9978" stroke-width="2.8" stroke-linecap="round"/>
+        <path id="needle"
+              d="M908.5 189.3 Q909.2 183.3 915.9 174.6 L937.4 141.8
+                 C940.3 137.7 943.8 136.5 946.5 138.7 C949.3 141.1 948 145 945.4 148.7
+                 L922.1 178.2 Q915.9 185.9 908.5 189.3 Z
+                 M939.3 143.3 C937.8 145.2 936.6 147 937.9 148.1
+                 C939.5 149.3 941.1 147.5 942.7 145.4 C944.1 143.5 944.7 141.8 943.6 141
+                 C942.4 140.2 940.8 141.3 939.3 143.3 Z"
+              fill="url(#needle-steel)" fill-rule="evenodd"/>
+        <path d="M937.8 143.5 Q939.2 144 940.5 145.5" fill="none" stroke="#ffb08d" stroke-width="1.8" stroke-linecap="round"/>
+      </g>
+
+      <g id="workflow-output" aria-label="The joined workflow branches to multiple endpoints"
+         fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75">
+        <g id="teal-outputs" stroke="#85e8dc">
+          <path d="M1018 189 H1037 L1051 175 H1090
+                   M1037 189 H1064 L1076 194 H1101
+                   M1045 181 V156 H1060 L1071 146 H1086"/>
+          <g fill="#85e8dc" stroke="none">
+            <circle cx="1086" cy="146" r="4.5"/>
+            <circle cx="1090" cy="175" r="4.5"/>
+            <circle cx="1101" cy="194" r="4.5"/>
+          </g>
+        </g>
+        <g id="coral-outputs" stroke="#ff9978">
+          <path d="M1018 211 H1039 L1053 225 H1091
+                   M1039 211 H1062 L1075 206 H1101
+                   M1045 217 V240 H1064 L1073 249 H1087"/>
+          <g fill="#ff9978" stroke="none">
+            <circle cx="1101" cy="206" r="4.5"/>
+            <circle cx="1091" cy="225" r="4.5"/>
+            <circle cx="1087" cy="249" r="4.5"/>
+          </g>
+        </g>
+      </g>
+
+      <g font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="1">
+        <text x="809" y="111" fill="#b0c7d2">FRAGMENTED HANDOFFS</text>
+        <text x="1106" y="278" fill="#b0c7d2" text-anchor="end">REPEATABLE WORKFLOW</text>
+      </g>
+    </g>
+    <path d="M 1158 32 h-26 M 1158 32 v26 M 1132 358 h26 M 1158 358 v-26" fill="none" stroke="#829ab0" opacity=".7"/>
+  </g>
+</svg>

@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "active": {
+    "id": "v07",
+    "archive": false
+  },
+  "versions": {
+    "v01": {
+      "title": "Fibonacci workflow banner",
+      "source_commit": "29979d093abfb9e46bd3c707f650f843a7e3958e",
+      "files": {
+        "README.md": "95088320cb7b25c26c5d7f544107ba5be4fb1df5a969072917f208416900d322",
+        "assets/hero.svg": "5ab395133d1e477c0baa4489efbcf789ee9e64ff4db398f168d41efbfa378b65"
+      }
+    },
+    "v02": {
+      "title": "First Stitch",
+      "source_commit": "39da5a853068e70be79d73c8d330e2ffb8a083b6",
+      "files": {
+        "README.md": "f6107d0cb13cfe30c40d62d05d8220d95cf4e0776e75102053fb672cc6ca5009",
+        "assets/first-stitch.gif": "a30cc8123f40bcd0595d6e9bd13bedd2b4d72474a208a1d4da49dc11533bbcbc",
+        "assets/hero.svg": "5ab395133d1e477c0baa4489efbcf789ee9e64ff4db398f168d41efbfa378b65"
+      }
+    },
+    "v03": {
+      "title": "Motion woven through the introduction",
+      "source_commit": "90a3f5ac390e53b84c79e9f606a99a27322e752b",
+      "files": {
+        "README.md": "9281892ce682e163d097fc7b6dc90d5027000ecbfa4ee94d04e2c909002ff765",
+        "assets/stitch-continuation.gif": "19a6ad771a48801024eb3ba0b5a351ba5aa61ffcd25fc1f3b4c869be1a15764b",
+        "assets/stitch-continuation.png": "226cd403e958711d71b94af7b026fa2d261954a4b6e872cf2818e20b054ec8c4",
+        "assets/stitch-opening.gif": "9741f73c3e87bec86b5f350869b93f088936e5065e02d1ffa28c18108e92b0a3",
+        "assets/stitch-opening.png": "bb5d653cd1edb56a8b9dcd267142b693dbefe1311291a0f36df37708a7936ad0"
+      }
+    },
+    "v04": {
+      "title": "Top-down threads",
+      "source_commit": "15cf005cae66b0424a9b729f55961e1a8613e946",
+      "files": {
+        "README.md": "2356d487610a26f345cd9dfefca31d35465f6a8baa82f73522072f9892c70b25",
+        "assets/stitch-descent.gif": "750aa8de22375406fc98619c09bf7a79ae80e18d8d51b02cb8bf164215fff722",
+        "assets/stitch-descent.png": "3ac48aa92b7bb5b65d8c9c68d3264ebb2d2333c40a485f76286bf0a492a8a07c",
+        "assets/stitch-resume.gif": "4494dc006e391095bdbaa4423defa95b6929bb053efc8a254e7797ca9e6f0ee0",
+        "assets/stitch-resume.png": "b0fa43ba338889875b0f0a06304a8fb45c0a633091409b33358630309e56e73c"
+      }
+    },
+    "v05": {
+      "title": "Layered dendritic artwork",
+      "source_commit": "e8f8949db1d1b72380f396a6a7cb2c4caa578c81",
+      "files": {
+        "README.md": "2356d487610a26f345cd9dfefca31d35465f6a8baa82f73522072f9892c70b25",
+        "assets/stitch-descent.gif": "bb6abe14ecccb79e8813e0d46888590580a4cbbbf3bc95439271d84ccdd441a6",
+        "assets/stitch-descent.png": "e1adcf4e6f938e60badc039dd057c92cc1622cc935910d5fe0986d1f30ec0784",
+        "assets/stitch-resume.gif": "f042ab4867339d08b2f6606825e5642b2d4100c6d894996c919686a98fa8c488",
+        "assets/stitch-resume.png": "c31689c4efae2b9b02000342e949c55e6a5300d1ef22764a3d9d79dcebdd65e6"
+      }
+    },
+    "v06": {
+      "title": "Looping Fibonacci panels",
+      "source_commit": "e7c72ea8daca767856c4318c45783b2b04522f8f",
+      "files": {
+        "README.md": "d6b4191a5431a5a34ef0bb8d3cd535bcf2a5465f63e2af1e3cf235038724a00a",
+        "assets/hero.svg": "5ab395133d1e477c0baa4489efbcf789ee9e64ff4db398f168d41efbfa378b65",
+        "assets/stitch-descent.gif": "48528d54d888791a97c3c28b06073cb18b83bbbe542cdf35e0994ce9bb3702b0",
+        "assets/stitch-descent.png": "1114da39e76e2b7babed66b79373157f9d5789a6775c0b330da5146c5d0cd942",
+        "assets/stitch-pulse.gif": "fa16cbca01cffc513db0890bf148eed664f23a825c6543274fba589f4e887579",
+        "assets/stitch-pulse.png": "32533127b15d0e0724407806923b20060e0f3f9cdf4f580fc3f4ae19f3a45774",
+        "assets/stitch-resume.gif": "70d7fa66b49c430c8b0b899481f7e5aff62338b20e5578dd089e892a50ac34e9",
+        "assets/stitch-resume.png": "d4c02ae4c040a81a031927a408b54a35ee30a4ac7872be12e24150d38c145ecd"
+      }
+    },
+    "v07": {
+      "title": "Continuous cosmic web",
+      "source_commit": "63d086dba3e244c710207314326b4435db9be5bf",
+      "files": {
+        "README.md": "09bbfbe1a5cce745a63a4bc3666fec8ac68a0bdfba17e6e93975ad3a28c60348",
+        "assets/hero.svg": "f4ed04468777cdb7483d14759d4c26ea304d43af14b7ea655f8b4478a8f9904c",
+        "assets/stitch-descent.gif": "acc90cffe5623171d5445b03babd653b7745b1b9bbae7536a8ca5e0431b80061",
+        "assets/stitch-descent.png": "0b19b159527a7a6d3f9c6704419360741850dcdbd8614f3ee1772baf743430ed",
+        "assets/stitch-pulse.gif": "efd04f8a2db280dff2e68074533967475e1bf37da50041515c491e8fbe338379",
+        "assets/stitch-pulse.png": "7e0aafac4ccbed9ae73f56439ba311eff27d863ba186fc7e2a900b985c1ea2bf",
+        "assets/stitch-resume.gif": "d8201ef5720ef889e543117761525d1a36a0e33f09d021704221b6cdd4d1ffe3",
+        "assets/stitch-resume.png": "10dac91f0309de4b2b6f2ac8e5ecebb602ddd32d927aafb92604b744a817cae8"
+      }
+    }
+  }
+}
