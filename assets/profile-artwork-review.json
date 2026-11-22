@@ -1,25 +1,25 @@
 {
   "version": 1,
   "observations": {
-    "cosmic_density": "Diffuse orange dust sits behind filament ribbons, bright knots and fine sparks. Blue strands interlace with the orange layers at shared points.",
-    "dark_voids": "Open space remains between strands. Orange dust gathers along paths while leaving dark pockets in all three panels.",
-    "luminous_clusters": "Bright orange and ice-blue clusters emerge from their surrounding dust at different depths.",
-    "vertical_continuity": "The banner meets the cool opening route. A continuous orange filament travels next to it and across both text seams.",
-    "phone_legibility": "At 255 px both colors read in each GIF and still, and the outgoing pulses still travel through both footer branches.",
-    "fibonacci_structure": "The original banner spiral remains. Density blur scales and motion period draw from Fibonacci values, with 21 frames at 130 ms.",
-    "handoff_ontology": "The diagram\u2019s repeatable-workflow output diffuses into the growth field and divides into two reaching branches below the closing copy.",
-    "continuous_motion": "Each GIF repeats indefinitely with controlled last-to-first transitions and a dimension-matched reduced-motion still.",
-    "palette": "Blue and orange tracks bring the banner and avatar colors into every frame. The orange web spans broad dust, midtone filaments and brighter knots.",
-    "pinned_handoff": "Cool pulses travel down both routes with staggered timing while orange dust follows the forks and fades toward Pinned."
+    "cosmic_density": "The first two panels carry the layered v09 web. The new footer uses crisply resolved cyan and ember filaments and fine grains near the edges.",
+    "dark_voids": "The closing artwork has an open dark type bed; the strands feather into the GitHub dark canvas at the perimeter.",
+    "luminous_clusters": "Small ice-blue and ember knots form in the sides of the closing artwork. The brightest region at center is the invitation text.",
+    "vertical_continuity": "The banner and two text transitions carry the v09 blue and orange web. The final panel echoes their descending motion along both margins.",
+    "phone_legibility": "The two invitations remain legible at 255 px in the decoded GIF and its PNG still. The text does not move.",
+    "fibonacci_structure": "Earlier panels retain 21 frames at 130 ms. The Nexus runs at 34 frames and 80 ms with the golden ratio setting the slope and phase separation.",
+    "handoff_ontology": "The cyan lane carries the invitation to explore and the ember lane carries the invitation to collaborate. The linked graphic opens the public work.",
+    "continuous_motion": "Both outer sides drift through a seamless, infinite 2.72-second loop. The static poster shows the same two invitations.",
+    "palette": "Cold blue and ember match the avatar and upper panels. Off-white and warm white set two distinct lines of stable text.",
+    "pinned_handoff": "The closing graphic occupies the former blank sides. Its glints drift down on both margins toward Pinned. The image is the final visible README content."
   },
   "sha256": {
     "assets/hero.svg": "d0a1af17ab2fd408cd5d6cb9c63a403ad0329474870f82aed64f32892220a49e",
     "assets/stitch-descent.gif": "7cc770a6e33b4f20fb089da96a6df5dc63a07d4b074f1e0b149ebc62456184f5",
     "assets/stitch-descent.png": "3b2733b52e816fab36b4a01b5bb1960d3b22ca60c9c5457331db76ee2e1e6661",
-    "assets/stitch-pulse.gif": "3894feece12e713bb2391e3fc86f87a4c299d724e7237946dcee7202acfb9747",
-    "assets/stitch-pulse.png": "8f81a5671e9535fb367107e014b0c265bdd9b00eba18f4551c83de12a1cd0086",
     "assets/stitch-resume.gif": "3a6a9d814bfa8716a2b95e25c95439a5c8ffa119e827f203daf51ca07679dee6",
     "assets/stitch-resume.png": "79e1407c1db056cad9b8fd31882b1c84a8c3b80b123c97b013800125e2ce27a5",
-    "scripts/render_profile_motion.py": "4a1467c389bb30d9a27c4fdcb028b24abecc81fe45b9d870b28a3ff6a502e895"
+    "assets/stitch-pulse.gif": "28e09b07af50321ad85eeb1cf99765aab0b36a2d0ebcc0f9ae9222d4b121d054",
+    "assets/stitch-pulse.png": "ed78202c13c980436e6c1611c55a9cbf713950e42a1cb1b997c67e097b146bde",
+    "scripts/render_profile_motion.py": "55572f25b6fdbdbfb13da15846eaedb04c147e5ffb3bc43040d3f2465729d1da"
   }
 }

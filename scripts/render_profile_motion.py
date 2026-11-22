@@ -11,6 +11,8 @@ DELIVERY_WIDTH = 704
 FIBONACCI = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233)
 FRAMES = FIBONACCI[6]
 FRAME_MS = FIBONACCI[5] * 10
+NEXUS_FRAMES = FIBONACCI[7]
+NEXUS_FRAME_MS = FIBONACCI[4] * 10
 BACKGROUND = (13, 17, 23)
 BANNER_EXIT_X = 958
 BANNER_WIDTH = 1200
@@ -259,12 +261,49 @@ def render(output):
         offset += height
 
 
+def render_nexus_footer(output):
+    """Animate lateral glints from the frozen, typeset reduced-motion poster."""
+    import numpy as np
+    from PIL import Image
+
+    still = Image.open(output / "stitch-pulse.png").convert("RGB")
+    pixels = np.asarray(still, dtype=float)
+    y, x = np.mgrid[0:still.height, 0:still.width]
+    side = np.minimum(x, still.width - 1 - x) / still.width
+    phi = (5 ** .5 - 1) / 2
+    progress = phi * (y / still.height) + (1 - phi) * np.clip(1 - side / .27, 0, 1)
+    # Motion follows the luminous material in the outer bands. The type is frozen.
+    light = pixels.max(axis=2) - pixels.min(axis=2)
+    mask = np.clip((light - 38) / 40, 0, 1) * np.clip((.23 - side) / .09, 0, 1)
+    phase_offset = np.where(x < still.width / 2, 0, 1 - phi)
+    frames = []
+    for frame in range(NEXUS_FRAMES):
+        phase = (frame / NEXUS_FRAMES + .06 - phase_offset - progress) % 1
+        pulse = np.maximum(np.cos(2 * np.pi * phase), 0) ** 5
+        exposure = 1 + .56 * pulse * mask
+        lit = BACKGROUND + (pixels - BACKGROUND) * exposure[..., None]
+        frames.append(Image.fromarray(np.clip(lit, 0, 255).astype('uint8')))
+
+    samples = Image.new("RGB", (still.width, still.height * 3))
+    for index, image in enumerate((still, frames[8], frames[21])):
+        samples.paste(image, (0, index * still.height))
+    palette = samples.quantize(colors=52, method=Image.Quantize.MEDIANCUT)
+    encoded = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    encoded[0].save(output / "stitch-pulse.gif", save_all=True, append_images=encoded[1:],
+                    duration=NEXUS_FRAME_MS, loop=0, disposal=1, optimize=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ASSETS)
+    parser.add_argument("--nexus-footer", action="store_true",
+                        help="Animate only the Nexus GIF from stitch-pulse.png in the output directory.")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    render(args.output)
+    if args.nexus_footer:
+        render_nexus_footer(args.output)
+    else:
+        render(args.output)
 
 
 if __name__ == "__main__":

@@ -4,10 +4,10 @@ The banner introduces fragmented handoffs, the needle and a repeatable workflow.
 Its lower-right output dissolves into the opener's blue and orange field. The first GIF
 carries a cyan-white signal down through clusters toward the introduction.
 The second resumes the same field beneath the copy and leads into the
-remaining sections. In the final GIF, the same light divides into two soft
-pulses that travel down and outward. The fading tips sit near the centers of
-the two Pinned columns on desktop. On a phone they frame the top of the
-stacked cards.
+remaining sections. The v10 finale sets “Explore the projects.” and “Build with me.”
+inside the GIF. Glints travel down both margins of a surreal blue and ember
+cosmic web. The entire image opens the public repository list. Its alternative
+text includes how to collaborate through an issue or pull request.
 
 The cosmic web is one deterministic density field sliced at the two text breaks.
 Neighboring clouds connect through granular blue and orange filaments.
@@ -16,8 +16,10 @@ through the blue field. Both colors come from the banner and avatar. Dark voids 
 layers. Keep individual paths buried in the density and let bright regions
 emerge where clouds meet. Exposed wireframes, concentric rings, metallic tubes,
 claws and repeated root silhouettes fail visual review. Fibonacci proportions
-govern the density scales, phase period and the cadence of 21 frames at
-130 milliseconds. The existing banner retains its Fibonacci spiral.
+govern the density scales, phase period and cadence. The first two scenes use
+21 frames at 130 milliseconds. The Nexus footer has 34 frames at 80 milliseconds
+and uses the golden ratio for the direction and relative phase of its glints.
+The banner retains its Fibonacci spiral.
 
 ## Regenerate and review
 
@@ -26,20 +28,26 @@ SciPy 1.17.0 and Pillow 13.0.0. The visual checker uses Pillow to decode
 shipped GIFs.
 
 ```sh
-python scripts/render_profile_motion.py --output /path/to/preview
+python scripts/render_profile_motion.py --output /path/to/legacy-preview
+python scripts/render_profile_motion.py --nexus-footer
 python scripts/verify_profile_banner.py
 python scripts/verify_profile_visuals.py
 python -m unittest discover -s scripts -v
 ```
+
+The v10 PNG is the source poster for its GIF, with a generated cosmic-web plate
+and typeset copy. The `--nexus-footer` command uses that poster and regenerates
+only the GIF. The unrestricted legacy renderer produces the earlier three-panel
+expression for comparison.
 
 Inspect each encoded GIF and its PNG still at desktop width and at 255 px.
 Check that the banner output meets the projected opening field. Keep a visible
 anchor at each text break and fade the surrounding light at the image edges.
 The validator checks the sequence, detached or misplaced panels, repeat
 metadata, downward signal, two independently descending footer pulses and matching reduced-motion stills.
-The pixel checks measure blue filaments, orange dust and bright orange knots
-at 255 px. They also check for diffuse midtones, deep voids and luminous cores. Retain
-the qualitative visual review for organic shape and a sense of depth.
+The first two panels retain the density and palette checks. The v10 footer checks
+two lines of steady, legible text, the repository link, a continuous seam and
+descending glints on both sides. Retain the visual review for shape and depth.
 Keep the three GIFs under 250 kB combined. Update
 [profile-artwork-review.json](profile-artwork-review.json) after inspecting
 the exact files.
@@ -80,11 +88,13 @@ The catalog records the original commit and checksums for its archived files.
 | [v07](profile-releases/v07/) | Continuous cosmic web |
 | [v08](profile-releases/v08/) | Teal and coral cosmic web with a handoff to Pinned |
 | [v09](profile-releases/v09/) | Layered blue and orange cosmic web |
+| [v10](profile-releases/v10/) | Linked Nexus invitation for users and collaborators |
 
 Create a branch from current main. The first restore command prints a patch.
 The second applies it to your checkout. It changes the media blocks and the
 active version in the catalog while preserving the current README prose.
-A repository invitation stays below the restored footer artwork.
+The v10 invitation rolls back and returns with its GIF. A separately written
+legacy invitation stays with the copy when restoring legacy artwork.
 GitHub account settings, including the avatar and bio, live outside this archive.
 
 ```sh
