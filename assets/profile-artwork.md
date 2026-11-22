@@ -1,17 +1,18 @@
 # Profile artwork
 
 The banner introduces fragmented handoffs, the needle and a repeatable workflow.
-Its lower-right output dissolves into the opener's blue and orange field. The first GIF
-carries a cyan-white signal down through clusters toward the introduction.
-The second resumes the same field beneath the copy and leads into the
-remaining sections. The v10 finale sets “Explore the projects.” and “Build with me.”
+Its lower-right output dissolves into the opener's blue and orange field. The v11 opener carries cyan and ember signals down through fine filaments toward
+the introduction. The second GIF resumes the same vertical field beneath the
+copy, using the texture and glow of the v10 closing invitation. The v10 finale sets “Explore the projects.” and “Build with me.”
 inside the GIF. The centered Instrument Sans setting gives the second line
 more weight and makes it the first invitation the eye lands on. Distinct cores
 and soft halos light up junctions down the cyan and ember routes in turn. Each
 junction has a faint afterglow. The entire image opens the public repository list. Its alternative
 text includes how to collaborate through an issue or pull request.
 
-The cosmic web is one deterministic density field sliced at the two text breaks.
+The v11 upper cosmic web uses neighboring slices of one deterministic field.
+It remaps the type-free margins of the v10 Nexus poster into short, interlaced
+filament sections over a recessed layer from the v09 field.
 Neighboring clouds connect through granular blue and orange filaments.
 Orange dust sits behind brighter ribbons and knots, threading between and
 through the blue field. Both colors come from the banner and avatar. Dark voids provide scale and separate the
@@ -32,6 +33,7 @@ shipped GIFs.
 ```sh
 python scripts/render_profile_motion.py --output /path/to/legacy-preview
 python scripts/render_profile_motion.py --nexus-footer
+python scripts/render_profile_motion.py --nexus-upper
 python scripts/verify_profile_banner.py
 python scripts/verify_profile_visuals.py
 python -m unittest discover -s scripts -v
@@ -41,7 +43,9 @@ The v10 PNG is the source poster for its GIF, with a generated cosmic-web plate
 and [Instrument Sans](https://github.com/Instrument/instrument-sans) lettering
 rasterized from the SIL Open Font License 1.1 typeface. The `--nexus-footer`
 command uses that poster and regenerates
-only the GIF. The unrestricted legacy renderer produces the earlier three-panel
+only the GIF. The v11 upper renderer reads the immutable v10 poster and updates
+only the opening and continuation GIFs and PNGs. The unrestricted legacy renderer
+produces the earlier three-panel
 expression for comparison.
 
 Inspect each encoded GIF and its PNG still at desktop width and at 255 px.
@@ -94,6 +98,7 @@ The catalog records the original commit and checksums for its archived files.
 | [v08](profile-releases/v08/) | Teal and coral cosmic web with a handoff to Pinned |
 | [v09](profile-releases/v09/) | Layered blue and orange cosmic web |
 | [v10](profile-releases/v10/) | Linked Nexus invitation for users and collaborators |
+| [v11](profile-releases/v11/) | Nexus filaments and halos carry through both upper transitions |
 
 Create a branch from current main. The first restore command prints a patch.
 The second applies it to your checkout. It changes the media blocks and the
@@ -112,7 +117,7 @@ git diff
 ```
 
 Commit the two-file patch and merge through the normal PR workflow after the
-checks are green. To return to the latest expression, repeat the steps with `v09`.
+checks are green. To return to the latest expression, repeat the steps with `v11`.
 If a rollback needs a text break whose anchor was edited out, restore the
 supported section anchor in a separate editorial change. Saved working edits to
 the README or catalog must be committed or stashed before applying rollback.
@@ -124,10 +129,10 @@ media paths under `assets/`, then select the newly archived paths in the same
 PR so each artwork release has fresh URLs.
 
 ```sh
-python scripts/profile_release.py capture v10 --title "Your new expression"
+python scripts/profile_release.py capture v11 --title "Your new expression"
 git add -- README.md assets scripts
 git commit -m "Capture profile artwork v10"
-python scripts/profile_release.py restore v10 --apply
+python scripts/profile_release.py restore v11 --apply
 python scripts/profile_release.py check
 ```
 

@@ -262,6 +262,168 @@ def render(output):
         offset += height
 
 
+# Coordinates are in the delivered image, with one vertical axis across both GIFs.
+NEXUS_UPPER_HEIGHTS = (308, 257)
+NEXUS_UPPER_EXPORT_WIDTH = 640
+NEXUS_UPPER_LANES = (
+    (0, 1.85, 0, .86, False, ((563, 0),(530, 58),(453, 113),(351, 168),(289, 233),
+                              (244, 308),(297, 383),(368, 437),(333, 489),(138, 565))),
+    (1, 1.65, 1.2, .88, False, ((631, 0),(583,72),(562,128),(491,176),(400,239),
+                                (341,297),(417,374),(509,425),(541,485),(584, 565))),
+    (0, 1.37, 2.2, 1.12, True, ((102, 0),(149,66),(125,141),(97,207),(130,276),
+                                 (167,333),(103,417),(139,477),(174, 565))),
+    (0, 1.12, 4.2, 1.4, False, ((674, 0),(610,50),(626,139),(645,208),(591,279),
+                                 (629,351),(585,428),(651,482),(664, 565))),
+    (1, .97, 3.7, 1.1, True, ((186, 0),(146,73),(219,127),(181,211),(191,282),
+                              (155,374),(221,443),(209,502),(160, 565))),
+)
+
+
+def remap_filaments(material, x, y, trace, strength, phase, scale, reverse):
+    """Lay overlapping short sections of footer material along a continuous curve."""
+    import numpy as np
+    from scipy.ndimage import map_coordinates
+
+    height, width = material.shape[:2]
+    layer = np.zeros((*x.shape, 3), dtype=np.float32)
+    radial = x - trace
+    stride = -.82 if reverse else .78
+    for index, section in enumerate((35, 168, 307, 452, 579)):
+        origin = 104 + 7 * np.sin(index*1.77 + phase)
+        src_y = origin + (y - section) * stride
+        src_y += 9 * np.sin(y / 29 + phase) + radial * (.27 if index % 2 else -.19)
+        center = 48 + .42*(src_y - 60)
+        direction = -1 if (index + reverse) % 3 == 2 else 1
+        src_x = center + direction * radial * scale + 8 * np.sin(y / 44 + phase + index)
+        src_x += 3 * np.sin(y / 16 + phase + radial / 26)
+        fringe = np.clip((width - 1 - src_x) / 15, 0, 1)*np.clip(src_x / 18, 0, 1)
+        end = np.clip((src_y - 20) / 39, 0, 1)*np.clip((height - 12 - src_y) / 41, 0, 1)
+        mapped = np.stack([map_coordinates(channel, (src_y,src_x), order=1)
+                           for channel in np.moveaxis(material, -1, 0)], axis=-1)
+        layer += mapped*(fringe*end*strength)[...,None]
+    return layer
+
+
+def nexus_upper_plate(poster):
+    """Recover the two text-free margins and weave both upper slices from them."""
+    import numpy as np
+    from PIL import Image
+    from scipy.interpolate import PchipInterpolator
+
+    height = sum(NEXUS_UPPER_HEIGHTS)
+    y, x = np.mgrid[0:height, 0:DELIVERY_WIDTH].astype(np.float32)
+    background = np.asarray(BACKGROUND, dtype=np.float32)
+    source = np.maximum(0, np.asarray(poster, dtype=np.float32) - background)
+    # Leave a safety margin before the first and after the last typeset pixel.
+    material = (source[:, :155], source[:, -155:][:, ::-1])
+    traces = []
+    filaments = np.zeros((*x.shape, 3), dtype=np.float32)
+    for side, strength, phase, scale, reverse, points in NEXUS_UPPER_LANES:
+        route_x, route_y = np.asarray(points).T
+        trace = PchipInterpolator(route_y, route_x)(y[:, :1])
+        traces.append(trace)
+        filaments += remap_filaments(material[side], x, y, trace, strength, phase, scale, reverse)
+
+    # Keep a soft recessed layer from the current scene, below the sharp strands.
+    prior, _ = render_field()
+    fog = np.rint(224*(1-np.exp(-prior[:PANELS[0][1] + PANELS[1][1]]))).astype(np.uint8)
+    fog = np.asarray(Image.fromarray(fog).resize((DELIVERY_WIDTH, height), Image.Resampling.LANCZOS))
+    light = 238*(1-np.exp(-(filaments + .34*fog)/200))
+    luminance = light @ np.array((.2126, .7152, .0722), dtype=np.float32)
+    # Lift the existing brightest crossings; leave the dark fabric untouched.
+    highlights = (np.clip((luminance-83)/65, 0, 1)**1.45) * 102
+    warm = (filaments[..., 0] > filaments[..., 2] + 12)[...,None]
+    color = np.where(warm, (1, .71, .42), (.73, .89, 1))
+    return background + light + highlights[...,None]*color, traces[:2]
+
+
+def nexus_junction(x, y, center_x, center_y):
+    """A tight core and soft halo shared with the v10 invitation."""
+    import numpy as np
+
+    distance = ((x-center_x) / 1.16) ** 2 + (y-center_y) ** 2
+    core = 130 * np.exp(-distance / (2 * 4.2 ** 2))
+    halo = 72 * np.exp(-distance / (2 * 9.75 ** 2))
+    return core + halo
+
+
+def animate_upper_slice(pixels, traces, name, output, phase_offset):
+    """Let cyan and ember glints light existing junctions in descending order."""
+    import numpy as np
+    from PIL import Image
+    from scipy.ndimage import gaussian_filter
+
+    height, width = pixels.shape[:2]
+    y, x = np.ogrid[:height, :width]
+    border = np.clip(np.minimum(y, height-1-y)/28,0,1)**.65
+    anchor = np.maximum(np.exp(-((x-traces[0])/42)**2), np.exp(-((x-traces[1])/35)**2))
+    shade = (.12 + .70*border + (1-border)*.18*anchor)
+    shade *= np.clip(np.minimum(x,width-1-x)/36,0,1)**.64
+    pixels = np.asarray(BACKGROUND) + (pixels-np.asarray(BACKGROUND))*shade[...,None]
+    size = (NEXUS_UPPER_EXPORT_WIDTH, round(height * NEXUS_UPPER_EXPORT_WIDTH / width))
+
+    def export(image):
+        return Image.fromarray(np.rint(image).clip(0, 255).astype(np.uint8)).resize(
+            size, Image.Resampling.LANCZOS)
+
+    still = export(pixels)
+    still.save(output / f"{name}.png", optimize=True)
+    lightness = gaussian_filter(pixels @ np.array((.2126, .7152, .0722)), 4)
+    emitters = []
+    for lane, (trace, color) in enumerate(zip(traces, ((.28,.73,1), (1,.52,.19)))):
+        for position, band in enumerate((.10,.23,.36,.49,.62,.75,.89)):
+            row = round((height - 1) * band)
+            column = round(float(trace[row, 0]))
+            half_width = 35
+            left, right = max(0, column - half_width), min(width, column + half_width)
+            # Place the pulse next to a brighter strand with headroom to glow.
+            row_light = lightness[row, left:right]
+            center = left + int(np.argmin(np.abs(row_light-120)))
+            glow = np.maximum(0, nexus_junction(x, y, center, row) - 19) * shade
+            delay = phase_offset + position * .105 + lane * .031
+            emitters.append((delay, glow[...,None]*np.asarray(color) * .98))
+
+    frames = []
+    for frame_index in range(FRAMES):
+        phase = frame_index / FRAMES
+        lit = pixels.copy()
+        for delay, glow in emitters:
+            pulse = max(0, np.cos(tau * (phase - delay))) ** 14
+            echo = max(0, np.cos(tau * (phase - delay - .085))) ** 24
+            lit += glow * (pulse + .18 * echo)
+        frames.append(export(lit))
+    samples = Image.new("RGB", (still.width, still.height * 4))
+    for index, frame in enumerate((still, frames[3], frames[9], frames[15])):
+        samples.paste(frame, (0, index * still.height))
+    rows = np.asarray(samples).reshape(-1, 3).astype(np.int16)
+    warmth = (rows[:, 0] >= 43) & (rows[:, 0]-rows[:, 1] >= 8) & (rows[:, 1]-rows[:, 2] >= 3)
+    entries = []
+    for sample, colors in ((rows[~warmth], 30), (rows[warmth], 15)):
+        # Pillow's quantizer needs a modest row width on every supported host.
+        swatches = Image.fromarray(sample[:(len(sample) // 256)*256].reshape(-1, 256, 3).astype(np.uint8))
+        entries.extend(swatches.quantize(colors=colors).getpalette()[:3*colors])
+    palette = Image.new("P", (1, 1))
+    palette.putpalette(entries)
+    encoded = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    encoded[0].save(output / f"{name}.gif", save_all=True, append_images=encoded[1:],
+                    duration=FRAME_MS, loop=0, disposal=1, optimize=True, palette=bytes(entries))
+
+
+def render_nexus_upper(output, poster_path):
+    from PIL import Image
+
+    with Image.open(poster_path) as source:
+        poster = source.convert("RGB")
+    if poster.size != NEXUS_SIZE:
+        raise ValueError(f"The Nexus poster must be {NEXUS_SIZE[0]}×{NEXUS_SIZE[1]}.")
+    plate, traces = nexus_upper_plate(poster)
+    offset = 0
+    for (name, _), height, phase in zip(PANELS, NEXUS_UPPER_HEIGHTS, (.02, .22)):
+        end = offset + height
+        animate_upper_slice(plate[offset:end], [trace[offset:end] for trace in traces], name, output, phase)
+        offset = end
+
+
 def render_nexus_footer(output):
     """Light the knots in both filaments from the typeset reduced-motion poster."""
     import numpy as np
@@ -283,10 +445,7 @@ def render_nexus_footer(output):
     for lane_index, (knots, color) in enumerate(lanes):
         ink = np.array(color, dtype=np.float32)
         for knot_index, (center_x, center_y) in enumerate(knots):
-            distance = ((x-center_x) / 1.16) ** 2 + (y-center_y) ** 2
-            core = 130 * np.exp(-distance / (2 * 4.2 ** 2))
-            halo = 72 * np.exp(-distance / (2 * 9.75 ** 2))
-            glow = np.maximum(0, (core + halo - 7) * edge)
+            glow = np.maximum(0, (nexus_junction(x, y, center_x, center_y) - 7) * edge)
             delay = .06 + knot_index * .111 + lane_index * .50
             emitters.append((delay, glow[..., None] * ink))
 
@@ -312,12 +471,17 @@ def render_nexus_footer(output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ASSETS)
-    parser.add_argument("--nexus-footer", action="store_true",
-                        help="Animate only the Nexus GIF from stitch-pulse.png in the output directory.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--nexus-footer", action="store_true",
+                      help="Animate only the Nexus GIF from stitch-pulse.png in the output directory.")
+    mode.add_argument("--nexus-upper", action="store_true",
+                      help="Render both upper GIFs and their PNG stills using the v10 Nexus texture.")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.nexus_footer:
         render_nexus_footer(args.output)
+    elif args.nexus_upper:
+        render_nexus_upper(args.output, ASSETS / "profile-releases/v10/assets/stitch-pulse.png")
     else:
         render(args.output)
 
