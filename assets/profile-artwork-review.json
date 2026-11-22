@@ -1,25 +1,25 @@
 {
   "version": 1,
   "observations": {
-    "cosmic_density": "The v09 field remains above the closing invitation. The Nexus shows crisp cyan and ember filaments, with halos tied to specific junctions.",
-    "dark_voids": "The closing artwork has an open dark type bed. The strands feather into the GitHub dark canvas at the perimeter.",
-    "luminous_clusters": "Successive bright cyan and ember cores grow a surrounding halo and leave a small afterglow. Both paths were inspected at 255 px.",
-    "vertical_continuity": "The banner and two text transitions carry the v09 blue and orange web. The final panel echoes their descending motion along both margins.",
-    "phone_legibility": "Both lines remain readable at 255 px in the encoded GIF and its PNG. Centered Instrument Sans makes Build with me the stronger line and stays steady.",
-    "fibonacci_structure": "Earlier panels retain 21 frames at 130 ms. The Nexus uses 34 frames at 80 ms. The banner retains its Fibonacci curve.",
-    "handoff_ontology": "The cyan lane carries the invitation to explore and the ember lane carries the invitation to collaborate. The linked graphic opens the public work.",
-    "continuous_motion": "The cyan and ember paths rise and fade in turn across a seamless, infinite 2.72-second loop. The still poster carries the same wording.",
-    "palette": "Cold blue and ember match the avatar and upper panels. Off-white and warm white set two distinct lines of stable text.",
-    "pinned_handoff": "Illuminated knots progress downward on both sides toward Pinned. The reviewed poster and GIF have identical framing and type."
+    "cosmic_density": "Both upper panels use short overlapping samples of the v10 Nexus poster’s fine filaments, with quieter violet-blue haze behind the foreground.",
+    "dark_voids": "Thin texture leaves dark gaps between branching blue and ember paths. Both slices feather into the README's dark background.",
+    "luminous_clusters": "Cyan and ember pulses have a compact core, a soft halo, and a short afterglow tied to successive filaments. Both upper loops retain observable motion at 255 px.",
+    "vertical_continuity": "One vertical field supplies the opener and continuation. The cyan and ember paths cross the intro break at corresponding positions.",
+    "phone_legibility": "The upper panels fill a 255 px column with heights of 112 and 93 px. The approved v10 footer still reads Explore the projects. Build with me.",
+    "fibonacci_structure": "The two new upper panels preserve the 21-frame, 130 ms cadence. The unchanged footer retains 34 frames at 80 ms.",
+    "handoff_ontology": "Opening light moves from the banner output through two stitched transitions. The closing panel opens the public projects with the approved invitation.",
+    "continuous_motion": "Both cold and warm pulses descend with a brief afterglow in 2.73-second loops. The paired quiet PNGs provide the reduced-motion view.",
+    "palette": "V10’s blue and ember materials form the foreground of both scenes. Warmer palette entries preserve orange detail at phone width.",
+    "pinned_handoff": "Both upper threads open out before the approved v10 closing invitation. Both footer files are byte-identical to the reviewed release."
   },
   "sha256": {
     "assets/hero.svg": "d0a1af17ab2fd408cd5d6cb9c63a403ad0329474870f82aed64f32892220a49e",
-    "assets/stitch-descent.gif": "7cc770a6e33b4f20fb089da96a6df5dc63a07d4b074f1e0b149ebc62456184f5",
-    "assets/stitch-descent.png": "3b2733b52e816fab36b4a01b5bb1960d3b22ca60c9c5457331db76ee2e1e6661",
-    "assets/stitch-resume.gif": "3a6a9d814bfa8716a2b95e25c95439a5c8ffa119e827f203daf51ca07679dee6",
-    "assets/stitch-resume.png": "79e1407c1db056cad9b8fd31882b1c84a8c3b80b123c97b013800125e2ce27a5",
+    "assets/stitch-descent.gif": "9cb51c00bc27ea7690fbd7b50d3e142ac3e5affc0e818288905b10181422f056",
+    "assets/stitch-descent.png": "27be8906e8bf884728956f1d4b58ef049ddd81989efca57a41a773018a7138d8",
+    "assets/stitch-resume.gif": "cea5c7b9c6897943e4cca732e306602e7efe3bc8f06e869b3a2a8ec6ad217356",
+    "assets/stitch-resume.png": "ad5ade45f691269238f63ec3d54b5afde4b8679b09e4fbe7017c5f89b1694b2d",
     "assets/stitch-pulse.gif": "ed7ab41bc7b7904f926659e166083dc4947d1c95763b0b9fa234e4169065a71b",
     "assets/stitch-pulse.png": "6daf89a74f9f51be85a0857a18bd83808485310b2e9160c08d730ac7f74767ef",
-    "scripts/render_profile_motion.py": "b438a5b71b71e566856ba881dc554db0a6d9deca6abedc913071391e6da22a52"
+    "scripts/render_profile_motion.py": "ed59f0b78f0dcbb704a5791f1ccaa22b622dc8d7fc684d3b59cabce329e6943d"
   }
 }
