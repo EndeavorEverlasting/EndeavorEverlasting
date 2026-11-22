@@ -4,7 +4,7 @@ The release target is the [public profile](https://github.com/EndeavorEverlastin
 Its source is this repository's default-branch README and assets.
 
 - Start with `python scripts/profile_release.py status --history` for the checked-out artwork, populated scenes, independent editorial revision, and commit history. Use `--json` when another tool consumes the results. The last fetched default reference can be stale; use `status --live` from a clean checkout of GitHub's default HEAD to verify the public artwork and repository invitation.
-- Run `python scripts/profile_release.py status --compare v08` to see what a rollback changes, then use the printed `restore` preview. Artwork restores keep current README prose. Older original artwork commits and newer Git registration commits are recorded separately.
+- Run `python scripts/profile_release.py status --compare v09` to see which scenes and repository invitation would change, then use the printed `restore` preview. Artwork restores keep current README prose. The linked Nexus invitation travels with its artwork. Older original artwork commits and newer Git registration commits are recorded separately.
 
 - From the clean candidate commit, install `Pillow>=11,<14` if needed and run `python scripts/profile_release.py verify --base <full-origin-main-sha>` before landing. Fetch the default branch first and use its commit as the base. This runs the same scope, banner, artwork, and regression checks as Actions on `main`.
 - Pull requests run the base commit's scope guard. The full hosted suite runs on `main` pushes and manual dispatch. Entire CLI records agent sessions and checkpoints. Keep any session capture separate from this public repository.

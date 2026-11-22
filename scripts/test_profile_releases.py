@@ -110,10 +110,22 @@ class ProfileReleaseTests(unittest.TestCase):
         original = readme.read_text()
         if not NEXUS_MEDIA.search(original):
             self.skipTest("The active release has no animated invitation yet.")
+        preview = self.command("status", "--compare", "v09")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertIn("Repository invitation would change from artwork to none.", preview.stdout)
+        preview = self.command("status", "--compare", "v09", "--json")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(json.loads(preview.stdout)["comparison"]["invitation_change"],
+                         {"from": "artwork", "to": None})
+        self.assertEqual(readme.read_text(), original)
         self.assertEqual(self.command("restore", "v09", "--apply").returncode, 0)
         self.assertIsNone(NEXUS_MEDIA.search(readme.read_text()))
         self.assertEqual(readme_copy(readme.read_text()), readme_copy(original))
         self.commit("Restore the old closing art")
+        preview = self.command("status", "--compare", version, "--json")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(json.loads(preview.stdout)["comparison"]["invitation_change"],
+                         {"from": None, "to": "artwork"})
         self.assertEqual(self.command("restore", version, "--apply").returncode, 0)
         self.assertEqual(readme.read_text(), original)
 

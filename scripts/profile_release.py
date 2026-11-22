@@ -343,6 +343,12 @@ def scene_files(blocks, files):
             for slot in SLOTS}
 
 
+def invitation_medium(readme):
+    if NEXUS_MEDIA.search(readme):
+        return "artwork"
+    return "text" if FOOTER_INVITATION.search(readme) else None
+
+
 def compare_artwork(root, data, current, target, readme, checkout_layout):
     require(target in data["versions"], f"Unknown release {target!r}. Run the list command.")
     current_blocks, current_files = read_archive(root, current, data["versions"][current])
@@ -365,12 +371,19 @@ def compare_artwork(root, data, current, target, readme, checkout_layout):
                    if MEDIA_ATTR.findall("\n".join(checkout_layout[slot])) !=
                       MEDIA_ATTR.findall("\n".join(target_layout[slot]))]
     blocker = None
+    invitation_change = None
     try:
-        insert_layout(readme, target_layout)
+        restored = insert_layout(readme, target_layout)
     except ValueError as error:
         blocker = str(error)
+    else:
+        current_invitation = invitation_medium(readme)
+        restored_invitation = invitation_medium(restored)
+        if current_invitation != restored_invitation:
+            invitation_change = {"from": current_invitation, "to": restored_invitation}
     return {"from": current, "to": target, "changed_scenes": scenes,
-            "media_url_scenes": url_changes, "restore_blocker": blocker,
+            "media_url_scenes": url_changes, "invitation_change": invitation_change,
+            "restore_blocker": blocker,
             "preview_command": f"python scripts/profile_release.py restore {target}"}
 
 
@@ -432,8 +445,7 @@ def profile_status(root, *, compare=None, live=False):
                           "archive_path": path, "archive_url": published_path}
     blocks, files = read_archive(root, selected["id"], data["versions"][selected["id"]])
     readme = read_blob(root, "README.md").decode("utf-8")
-    invitation_medium = "artwork" if NEXUS_MEDIA.search(readme) else (
-        "text" if FOOTER_INVITATION.search(readme) else None)
+    invitation = invitation_medium(readme)
     result = {
         "schema": 1,
         "checkout": {"commit": head, "branch": branch or None, "profile_changes_pending": pending},
@@ -441,8 +453,8 @@ def profile_status(root, *, compare=None, live=False):
                                  "artwork": remote["active"] if remote else None, "canonical_origin": canonical},
         "artwork": {**selected, **versions[selected["id"]], "scenes": scene_files(blocks, files)},
         "editorial": {"last_commit": editorial, "registry_baseline": baseline,
-                      "invitation_present": invitation_medium is not None,
-                      "invitation_medium": invitation_medium},
+                      "invitation_present": invitation is not None,
+                      "invitation_medium": invitation},
         "versions": versions, "next_artwork_version": next_release_id(versions),
         "history": events, "history_is_shallow": shallow,
     }
@@ -493,6 +505,9 @@ def format_status(data, history):
         if comparison["restore_blocker"]:
             lines.append(f"Restore blocked: {comparison['restore_blocker']}")
         else:
+            if change := comparison["invitation_change"]:
+                before, after = change["from"] or "none", change["to"] or "none"
+                lines.append(f"  Repository invitation would change from {before} to {after}.")
             lines.append("Artwork restore preserves current editorial copy.")
             lines.append(comparison["preview_command"])
     if history:
