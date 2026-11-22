@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "observations": {
+    "tapered_branches": "The four curved trunks carry attached forks and thinner secondary branches with smooth junctions.",
+    "depth_and_material": "Lit curved surfaces are in front of dim recessed filaments. The hourglass housing occludes the trunks and the glass bulbs show depth.",
+    "vertical_continuity": "Three sampled moments in both encoded GIFs move downward. At the copy break the four matching ends preserve position, width and material.",
+    "phone_legibility": "At a 255 px image width, the four central trunks and their major forks stay distinct in the two panels.",
+    "no_sketch_edges": "The visible trunks are shaded surfaces with antialiased silhouettes and no pencil, crayon or dry-brush texture."
+  },
+  "sha256": {
+    "assets/stitch-descent.gif": "bb6abe14ecccb79e8813e0d46888590580a4cbbbf3bc95439271d84ccdd441a6",
+    "assets/stitch-descent.png": "e1adcf4e6f938e60badc039dd057c92cc1622cc935910d5fe0986d1f30ec0784",
+    "assets/stitch-resume.gif": "f042ab4867339d08b2f6606825e5642b2d4100c6d894996c919686a98fa8c488",
+    "assets/stitch-resume.png": "c31689c4efae2b9b02000342e949c55e6a5300d1ef22764a3d9d79dcebdd65e6",
+    "scripts/render_profile_motion.py": "5b3e27b4946d929d58b5caf99a5b72c42be5c0cf20ab429d422f1411973550d5"
+  }
+}

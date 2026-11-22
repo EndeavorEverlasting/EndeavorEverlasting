@@ -1,14 +1,17 @@
 """Regression cases for the profile rollout verification."""
+import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 from render_profile_motion import (
-    CONTINUATION as CONTINUATION_CURVES, OPENING as OPENING_CURVES, verify_thread_direction,
+    CONTINUATION as CONTINUATION_CURVES, OPENING as OPENING_CURVES,
+    OPENING_HEIGHT, dendrites, verify_thread_direction,
 )
 from verify_profile_visuals import (
-    ASSETS, CONTINUATION, MILESTONES, OPENING, PROFILE, REDUCED_MOTION, REPO,
-    ProfileCheckError, check_artwork, checked_images, gif_timing, verify_public,
+    ARTWORK_REVIEW, ASSETS, CONTINUATION, MILESTONES, OPENING, PROFILE,
+    REDUCED_MOTION, RENDERER, REPO,
+    ProfileCheckError, check_artwork, check_review, checked_images, gif_timing, verify_public,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -113,6 +116,35 @@ class ProfileVisualTests(unittest.TestCase):
         shifted = (((start[0] + 10, start[1]), *remaining), *CONTINUATION_CURVES[1:])
         with self.assertRaisesRegex(ValueError, "endpoints must align"):
             verify_thread_direction(OPENING_CURVES, shifted)
+
+    def test_dendrites_have_depth_and_tapered_connected_offshoots(self):
+        branches = dendrites(OPENING_CURVES, OPENING_HEIGHT, True)
+        trunks = [branch for branch in branches if branch.signal is not None]
+        offshoots = [branch for branch in branches if branch.signal is None]
+        self.assertEqual([branch.signal for branch in trunks], list(range(4)))
+        self.assertTrue(any(branch.depth < 0 for branch in offshoots))
+        self.assertTrue(any(0 < branch.depth < min(t.depth for t in trunks)
+                            for branch in offshoots))
+        for branch in offshoots:
+            self.assertGreater(branch.radii[0], 2 * branch.radii[-1])
+            self.assertTrue(any(branch.points[0] in parent.points
+                                for parent in branches if parent is not branch))
+
+    def test_review_protects_assets_and_renderer(self):
+        review = json.loads((ROOT / ARTWORK_REVIEW).read_text(encoding="utf-8"))
+        release = {**self.assets, RENDERER: (ROOT / RENDERER).read_bytes()}
+        check_review(review, release)
+        # This alteration leaves GIF layout and block timing valid.
+        gif = bytearray(release[OPENING])
+        gif[13] ^= 1
+        check_artwork({**self.assets, OPENING: bytes(gif)})
+        for path, changed in ((OPENING, bytes(gif)), (RENDERER, b"flat line renderer")):
+            with self.subTest(path=path), self.assertRaisesRegex(ProfileCheckError, "reviewed version"):
+                check_review(review, {**release, path: changed})
+        notes = dict(review["observations"])
+        notes.pop("no_sketch_edges")
+        with self.assertRaisesRegex(ProfileCheckError, "five visual observations"):
+            check_review({**review, "observations": notes}, release)
 
     def test_bad_motion_bytes(self):
         gif = self.assets[OPENING]
