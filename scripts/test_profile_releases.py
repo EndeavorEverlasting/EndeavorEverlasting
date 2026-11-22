@@ -1,5 +1,6 @@
 """Exercise the real snapshot and rollback commands in an isolated Git checkout."""
 import json
+from hashlib import sha256
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,7 +12,8 @@ from unittest.mock import patch
 from profile_release import ARCHIVES, CATALOG, REPO, catalog, current_version, encode
 from profile_release import git, read_archive, archive_layout, next_release_id, verify_live_checkout, ReleaseError
 from verify_profile_scope import FOOTER_INVITATION, NEXUS_MEDIA, REPOSITORIES_URL, readme_copy
-from verify_profile_visuals import PROFILE, ProfileCheckError, verify_archived_public
+from verify_profile_visuals import ARTWORK_CRITERIA, ARTWORK_REVIEW, ASSETS, BANNER, PROFILE
+from verify_profile_visuals import ProfileCheckError, verify_archived_public
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -152,10 +154,24 @@ class ProfileReleaseTests(unittest.TestCase):
         shutil.copyfile(source, self.root / "README.md")
         data["active"] = {"id": current, "archive": False}
         (self.root / CATALOG).write_bytes(encode(data))
+        self.assertIn("V11 restore", self.command("capture", next_version, "--title", "Repeat").stderr)
+        banner = self.root / BANNER
+        banner.write_bytes(banner.read_bytes() + b"\n<!-- Candidate test fixture -->\n")
+        review_path = self.root / ARTWORK_REVIEW
+        review = json.loads(review_path.read_text())
+        digests = {path: sha256((self.root / path).read_bytes()).hexdigest() for path in ASSETS}
+        review["sha256"].update(digests)
+        evidence = {"baseline": "v11", "sha256": digests, "criteria": {
+            name: {"score": 2 if name == "handoff_ontology" else 1, "evidence": "Capture test fixture"}
+            for name in ARTWORK_CRITERIA
+        }}
+        review["candidate_evaluation"] = evidence
+        review_path.write_bytes(encode(review))
         base = self.commit("Select the reviewed working art for capture")
         result = self.command("capture", next_version, "--title", "Future profile expression")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(current_version(self.root, base)[0], {"id": next_version, "archive": False})
+        self.assertEqual(catalog(self.root)["versions"][next_version]["quality_evaluation"], evidence)
         self.assertEqual((self.root / ARCHIVES / next_version / "README.md").read_bytes(),
                          source.read_bytes())
         self.assertIn("next version ID", self.command("capture", next_version, "--title", "Overwrite").stderr)

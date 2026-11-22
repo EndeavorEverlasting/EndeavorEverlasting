@@ -4,6 +4,7 @@ import argparse
 from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
+from math import isfinite
 import json
 import os
 from pathlib import Path
@@ -41,6 +42,8 @@ NEXUS_CADENCE = (34, 80)
 LOOP_APPLICATIONS = (b"NETSCAPE2.0", b"ANIMEXTS1.0")
 ARTWORK_REVIEW = "assets/profile-artwork-review.json"
 RENDERER = "scripts/render_profile_motion.py"
+REFERENCE_RELEASE = "v11"
+PHONE_WIDTH = 255
 ARTWORK_CRITERIA = ("cosmic_density", "dark_voids", "luminous_clusters",
                     "vertical_continuity", "phone_legibility", "fibonacci_structure",
                     "handoff_ontology", "continuous_motion", "palette", "pinned_handoff")
@@ -295,7 +298,7 @@ def read_url(url):
         return response.read()
 
 
-def check_artwork(asset_bytes, *, nexus=False):
+def check_artwork(asset_bytes, *, nexus=False, report=True):
     require(sum(len(asset_bytes[path]) for path in MOTION) <= MAX_GIF_BYTES,
             "The three GIFs together exceed the 250 kB budget.")
     for path, minimum_aspect in MOTION.items():
@@ -309,8 +312,9 @@ def check_artwork(asset_bytes, *, nexus=False):
         require(still[:16] == b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" and
                 len(still) >= 24 and unpack(">II", still[16:24]) == (width, height),
                 f"{path} needs a PNG still with the same dimensions.")
-        print(f"PASS {path}: {width}×{height}, {frames} frames, {duration} ms, "
-              f"{len(animation)} bytes, infinite loop", flush=True)
+        if report:
+            print(f"PASS {path}: {width}×{height}, {frames} frames, {duration} ms, "
+                  f"{len(animation)} bytes, infinite loop", flush=True)
 
 
 def check_cosmic_density(image, path):
@@ -322,6 +326,7 @@ def check_cosmic_density(image, path):
     cores = sum(levels[170:]) / pixels
     require(0.19 <= darkness <= 0.62 and filaments >= 0.32 and 0.006 <= cores <= 0.12,
             f"{path} must retain dark voids, diffuse filament density and compact luminous cores.")
+    return {"dark_void_fraction": darkness, "filament_fraction": filaments, "core_fraction": cores}
 
 
 def check_bicolor_density(image, path):
@@ -337,6 +342,8 @@ def check_bicolor_density(image, path):
             blue += count
     require(orange >= 0.04*pixels and knots >= 0.012*pixels and blue >= 0.20*pixels,
             f"{path} must show blue filaments, orange dust and orange knots at phone width.")
+    return {"ember_fraction": orange / pixels, "ember_knot_fraction": knots / pixels,
+            "blue_fraction": blue / pixels}
 
 
 def check_footer_handoff(changes):
@@ -367,11 +374,13 @@ def check_nexus_pixels(frames, still):
     poster_delta = ImageChops.difference(type_bed, still.crop(center))
     require(sum(poster_delta.tobytes()) / (poster_delta.width * poster_delta.height) <= 3,
             "The reduced-motion poster must show the same Nexus text as the GIF.")
+    text_coverage = []
     for art in (frames[0], still):
         for start, end in ((.25, .50), (.52, .77)):
             band = art.crop((round(width * .23), round(height * start),
                              round(width * .77), round(height * end)))
             legible = sum(band.histogram()[175:]) / (band.width * band.height)
+            text_coverage.append(legible)
             require(.065 <= legible <= .23, "The Nexus poster needs two crisp lines at phone width.")
 
     floor = frames[0]
@@ -380,22 +389,29 @@ def check_nexus_pixels(frames, still):
     changes = [ImageChops.subtract(frame, floor) for frame in frames]
     edge = round(width * .216)
     bands = [round(height * fraction) for fraction in (.11, .36, .59, .88)]
+    halos, cores, delays = [], [], []
     for left, right in ((0, edge), (width - edge, width)):
         peaks = []
         for top, bottom in zip(bands, bands[1:]):
             levels = [frame.crop((left, top, right, bottom)).tobytes() for frame in changes]
             peak = max(range(len(levels)), key=lambda index: sum(levels[index]))
-            require(sum(value >= 20 for value in levels[peak]) >= 36
-                    and sum(value >= 40 for value in levels[peak]) >= 14,
+            halos.append(sum(value >= 20 for value in levels[peak]))
+            cores.append(sum(value >= 40 for value in levels[peak]))
+            require(halos[-1] >= 36 and cores[-1] >= 14,
                     "Visible glow needs a bright core and surrounding halo on both sides of the Nexus.")
             peaks.append(peak)
-        require(all(0 < (b-a) % len(frames) <= 8 for a, b in zip(peaks, peaks[1:])),
+        delays.extend((b-a) % len(frames) for a, b in zip(peaks, peaks[1:]))
+        require(all(0 < delay <= 8 for delay in delays),
                 "Nexus glints must travel downward on both sides.")
     deltas = [sum(ImageChops.difference(a, b).tobytes())
               for a, b in zip(frames, frames[1:] + frames[:1])]
     typical = median(deltas[:-1])
     require(typical >= 1500 and 0 < deltas[-1] <= typical * 2,
             "The Nexus glints must stay visible through a seamless repeat.")
+    return {"text_bright_fraction_min": min(text_coverage),
+            "halo_pixels_min": min(halos), "core_pixels_min": min(cores),
+            "band_delay_frames_max": max(delays), "frame_delta_median": typical,
+            "loop_seam_ratio": deltas[-1] / typical}
 
 
 def check_motion_pixels(asset_bytes, *, nexus=False):
@@ -404,22 +420,29 @@ def check_motion_pixels(asset_bytes, *, nexus=False):
 
     def phone_image(frame):
         return frame.convert("RGB").resize(
-            (255, round(frame.height / frame.width * 255)), Image.Resampling.LANCZOS
+            (PHONE_WIDTH, round(frame.height / frame.width * PHONE_WIDTH)), Image.Resampling.LANCZOS
         )
 
-    for path in MOTION:
+    measurements, stills = {}, {}
+    for scene, path in zip(("opening", "continuation", "nexus"), MOTION):
         with Image.open(BytesIO(asset_bytes[path])) as gif:
+            stats = {"frames": gif.n_frames, "frame_delay_ms": gif.info["duration"]}
             colored_frames = [phone_image(frame) for frame in ImageSequence.Iterator(gif)]
         frames = [frame.convert("L") for frame in colored_frames]
+        stats["height_at_phone_px"] = frames[0].height
+        measurements[scene] = stats
         still = path.removesuffix(".gif") + ".png"
         with Image.open(BytesIO(asset_bytes[still])) as image:
             still_rgb = phone_image(image)
+        stills[scene] = still_rgb.convert("L")
         if nexus and path == PULSE:
-            check_nexus_pixels(frames, still_rgb.convert("L"))
+            stats.update(check_nexus_pixels(frames, still_rgb.convert("L")))
             continue
         require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
-        check_cosmic_density(frames[0], path)
-        check_cosmic_density(still_rgb.convert("L"), still)
+        for sample, image, name in (("first_frame", frames[0], path),
+                                    ("still", still_rgb.convert("L"), still)):
+            stats.update({f"{sample}.{key}": value
+                          for key, value in check_cosmic_density(image, name).items()})
         deltas = []
         for first, second in zip(frames, frames[1:] + frames[:1]):
             changes = ImageChops.difference(first, second).histogram()
@@ -429,6 +452,7 @@ def check_motion_pixels(asset_bytes, *, nexus=False):
         require(typical >= minimum, f"{path} has no legible motion at phone width.")
         require(0 < deltas[-1] <= typical * 2,
                 f"{path} visibly jumps or holds at the repeat seam.")
+        stats.update(frame_delta_median=typical, loop_seam_ratio=deltas[-1] / typical)
         # Subtract the stationary dust using the darkest observed local value.
         floor = frames[0]
         for frame in frames[1:]:
@@ -437,13 +461,16 @@ def check_motion_pixels(asset_bytes, *, nexus=False):
         if path == PULSE:
             check_footer_handoff(changes)
         else:
-            middle = (0, round(frames[0].height*0.28), 255, round(frames[0].height*0.68))
+            motion_levels = [frame.histogram() for frame in changes]
+            stats["motion_halo_pixels_median"] = median(sum(levels[20:]) for levels in motion_levels)
+            stats["motion_core_pixels_median"] = median(sum(levels[40:]) for levels in motion_levels)
+            middle = (0, round(frames[0].height*0.28), PHONE_WIDTH, round(frames[0].height*0.68))
             centers = []
             for change in changes:
                 band = change.crop(middle)
                 pixels = band.tobytes()
-                rows = [sum(max(0, value-16) for value in pixels[i:i+255])
-                        for i in range(0, len(pixels), 255)]
+                rows = [sum(max(0, value-16) for value in pixels[i:i+PHONE_WIDTH])
+                        for i in range(0, len(pixels), PHONE_WIDTH)]
                 centers.append(sum(i*weight for i, weight in enumerate(rows))/sum(rows)
                                if sum(rows) > 240 else None)
             advances = [b-a for a, b in zip(centers, centers[1:] + centers[:1])
@@ -451,8 +478,88 @@ def check_motion_pixels(asset_bytes, *, nexus=False):
             require(sum(advance > 1 for advance in advances) >= 3 and
                     sum(advance > 1 for advance in advances) > sum(advance < -1 for advance in advances),
                     f"{path} must show light traveling down the branches.")
-        check_bicolor_density(colored_frames[0], path)
-        check_bicolor_density(still_rgb, still)
+            stats["downward_steps"] = sum(advance > 1 for advance in advances)
+        for sample, image, name in (("first_frame", colored_frames[0], path), ("still", still_rgb, still)):
+            stats.update({f"{sample}.{key}": value
+                          for key, value in check_bicolor_density(image, name).items()})
+
+    def edge_light_profile(image, start, stop):
+        """Normalize horizontal light distribution across the handoff edge."""
+        bands = zip(range(0, PHONE_WIDTH, 15), range(15, PHONE_WIDTH + 1, 15))
+        light = [sum(max(0, level - 30) for level in image.crop(
+            (left, round(image.height * start), right, round(image.height * stop))).tobytes())
+            for left, right in bands]
+        total = sum(light)
+        require(total > 0, "Both sides of the artwork handoff need visible light.")
+        return [value / total for value in light]
+
+    exit_light = edge_light_profile(stills["opening"], .75, .90)
+    entry_light = edge_light_profile(stills["continuation"], .10, .25)
+    measurements["handoff"] = {"edge_light_profile_distance":
+                               sum(abs(a - b) for a, b in zip(exit_light, entry_light))}
+    return {f"{scene}.{metric}": value for scene, stats in measurements.items()
+            for metric, value in stats.items()}
+
+
+def check_quality_measurements(criteria, actual):
+    """Evaluate each measured parameter independently against its approved floor."""
+    require(isinstance(criteria, dict) and set(criteria) == set(ARTWORK_CRITERIA), "The V11 floor must cover every visual criterion.")
+    assessed = set()
+    for criterion, spec in criteria.items():
+        require(isinstance(spec, dict) and isinstance(spec.get("measurements"), dict),
+                f"Invalid V11 criterion structure: {criterion}.")
+        for field in ("matches", "improves"):
+            require(isinstance(spec.get(field), str) and spec[field].strip(),
+                    f"Describe {field} for {criterion} in the V11 visual rubric.")
+        for metric, rule in spec["measurements"].items():
+            require(isinstance(rule, dict), f"Invalid quality rule for {metric}.")
+            require(metric in actual and metric not in assessed, f"Unknown or duplicate quality metric: {metric}.")
+            assessed.add(metric)
+            value = actual[metric]
+            baseline, tolerance, direction = rule.get("v11"), rule.get("tolerance"), rule.get("direction")
+            require(all(type(x) in (int, float) and isfinite(x) for x in (value, baseline, tolerance))
+                    and tolerance >= 0, f"Invalid quality values for {metric}.")
+            lower, upper = baseline - tolerance, baseline + tolerance
+            passes = {"minimum": value >= lower, "maximum": value <= upper,
+                      "within": lower <= value <= upper}
+            require(isinstance(direction, str) and direction in passes, f"Invalid quality direction for {metric}.")
+            require(passes[direction], f"{criterion}: {metric} measured {value:.6g}. "
+                    f"V11 {baseline:.6g}, {direction} tolerance {tolerance:.6g}.")
+    require(assessed == set(actual), "V11 floor must evaluate every exported measurement.")
+
+
+def check_quality_floor(root, asset_bytes, actual, release=None, *, capturing=False):
+    from profile_release import catalog
+
+    review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
+    floor = review.get("quality_floor")
+    require(isinstance(floor, dict) and floor.get("release") == REFERENCE_RELEASE
+            and floor.get("phone_width_px") == PHONE_WIDTH
+            and floor.get("review_scale") == {"0": "regression", "1": "matches_v11", "2": "improves_v11"},
+            "Use the pinned V11 quality floor.")
+    check_quality_measurements(floor.get("criteria"), actual)
+    digests = {path: sha256(content).hexdigest() for path, content in asset_bytes.items()}
+    reference_files = catalog(root)["versions"][REFERENCE_RELEASE]["files"]
+    matches_reference = all(reference_files.get(path) == digest for path, digest in digests.items())
+    if not capturing and release in (None, REFERENCE_RELEASE) and matches_reference:
+        return None
+    require(not matches_reference, "Use the V11 restore command to select the unchanged V11 artwork.")
+    evidence = (review.get("candidate_evaluation") if release is None else
+                catalog(root)["versions"][release].get("quality_evaluation"))
+    require(isinstance(evidence, dict) and evidence.get("baseline") == REFERENCE_RELEASE
+            and evidence.get("sha256") == digests,
+            "Bind the candidate evaluation to V11 and the exact delivered artwork hashes.")
+    assessments = evidence.get("criteria", {})
+    require(isinstance(assessments, dict) and set(assessments) == set(ARTWORK_CRITERIA),
+            "Record a reviewed verdict for every V11 criterion.")
+    for name, assessment in assessments.items():
+        require(isinstance(assessment, dict)
+                and type(assessment.get("score")) is int and assessment["score"] in (1, 2)
+                and isinstance(assessment.get("evidence"), str) and assessment["evidence"].strip(),
+                f"{name} needs evidence that the candidate matches or improves on V11.")
+    require(any(item["score"] == 2 for item in assessments.values()),
+            "Identify at least one visible improvement over V11 for new artwork.")
+    return evidence
 
 
 def check_review(review, release_bytes):
@@ -524,27 +631,43 @@ def main():
     from profile_release import current_version
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--live", action="store_true", help="Also verify the public GitHub profile.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--live", action="store_true", help="Also verify the public GitHub profile.")
+    mode.add_argument("--measure", choices=("active", "working"),
+                      help="Print the selected artwork measurements as JSON.")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     try:
+        if args.measure == "working":
+            artwork = {path: (root / path).read_bytes() for path in ASSETS}
+            check_artwork(artwork, nexus=True, report=False)
+            print(json.dumps(check_motion_pixels(artwork, nexus=True), indent=2, sort_keys=True))
+            return
         selected, blocks, files = current_version(root, os.getenv("PROFILE_RELEASE_BASE") or None)
         readme = (root / "README.md").read_text(encoding="utf-8")
         match = FOOTER_INVITATION.search(readme)
         invitation = match.group() if match else None
         nexus = bool(NEXUS_MEDIA.search(readme))
+        measurements = None
         if not selected["archive"]:
             expected = checked_images(readme)
             asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
-            check_artwork(asset_bytes, nexus=nexus)
-            check_motion_pixels(asset_bytes, nexus=nexus)
+            check_artwork(asset_bytes, nexus=nexus, report=not args.measure)
+            measurements = check_motion_pixels(asset_bytes, nexus=nexus)
             review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
             check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
         else:
             asset_bytes = {path: data for path, data in files.items() if path != "README.md"}
             if nexus:
-                check_artwork(asset_bytes, nexus=True)
-                check_motion_pixels(asset_bytes, nexus=True)
+                check_artwork(asset_bytes, nexus=True, report=not args.measure)
+                measurements = check_motion_pixels(asset_bytes, nexus=True)
+        if int(selected["id"][1:]) >= int(REFERENCE_RELEASE[1:]):
+            require(measurements is not None and nexus, "The V11 quality floor requires all Nexus scenes.")
+            check_quality_floor(root, asset_bytes, measurements, selected["id"])
+        if args.measure:
+            require(measurements is not None, "The active legacy release has no comparable measurements.")
+            print(json.dumps(measurements, indent=2, sort_keys=True))
+            return
         print(f"PASS active profile version: {selected['id']}")
         if args.live:
             for attempt in range(3):

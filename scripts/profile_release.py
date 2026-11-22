@@ -260,7 +260,7 @@ def archive_entry(root, name, title, source_commit, files):
 
 def capture(root, name, title):
     from verify_profile_visuals import ASSETS, ARTWORK_REVIEW, RENDERER, checked_images
-    from verify_profile_visuals import check_artwork, check_motion_pixels, check_review
+    from verify_profile_visuals import check_artwork, check_motion_pixels, check_quality_floor, check_review
 
     data = catalog(root)
     next_name = next_release_id(data["versions"])
@@ -275,11 +275,14 @@ def capture(root, name, title):
     nexus = bool(NEXUS_MEDIA.search(markup))
     artwork = {path: read_blob(root, path) for path in ASSETS}
     check_artwork(artwork, nexus=nexus)
-    check_motion_pixels(artwork, nexus=nexus)
+    measurements = check_motion_pixels(artwork, nexus=nexus)
+    require(nexus, "New profile artwork must preserve the V11 Nexus layout.")
+    evaluation = check_quality_floor(root, artwork, measurements, capturing=True)
     check_review(json.loads(read_blob(root, ARTWORK_REVIEW)),
                  {**artwork, RENDERER: read_blob(root, RENDERER)})
     require(not git(root, "status", "--porcelain", "--", CATALOG), "Commit pending catalog edits before capturing.")
     data["versions"][name] = archive_entry(root, name, title.strip(), None, {"README.md": raw_readme, **artwork})
+    data["versions"][name]["quality_evaluation"] = evaluation
     data["active"] = {"id": name, "archive": False}
     temp = None
     try:

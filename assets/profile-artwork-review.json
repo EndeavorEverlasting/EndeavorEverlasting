@@ -21,5 +21,377 @@
     "assets/stitch-pulse.gif": "ed7ab41bc7b7904f926659e166083dc4947d1c95763b0b9fa234e4169065a71b",
     "assets/stitch-pulse.png": "6daf89a74f9f51be85a0857a18bd83808485310b2e9160c08d730ac7f74767ef",
     "scripts/render_profile_motion.py": "ed59f0b78f0dcbb704a5791f1ccaa22b622dc8d7fc684d3b59cabce329e6943d"
+  },
+  "quality_floor": {
+    "release": "v11",
+    "release_commit": "c8108bac6fc1e0ffc0799b5e57b7a9b487fabeda",
+    "phone_width_px": 255,
+    "decoder": "Pillow 13.0.0; RGB Lanczos downsampling followed by luminance measurements",
+    "review_scale": {
+      "0": "regression",
+      "1": "matches_v11",
+      "2": "improves_v11"
+    },
+    "criteria": {
+      "cosmic_density": {
+        "matches": "Fine interlaced filaments fill the upper scenes with foreground and recessed layers.",
+        "improves": "Filaments have clearer depth and finer texture at 255 px, without exposing wireframes or repetitive silhouettes.",
+        "measurements": {
+          "continuation.first_frame.filament_fraction": {
+            "v11": 0.6008855154965211,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.025
+          },
+          "continuation.still.filament_fraction": {
+            "v11": 0.6080539742778832,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.025
+          },
+          "opening.first_frame.filament_fraction": {
+            "v11": 0.5161064425770309,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.025
+          },
+          "opening.still.filament_fraction": {
+            "v11": 0.5256652661064426,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.025
+          }
+        }
+      },
+      "dark_voids": {
+        "matches": "Dark pockets separate the clouds and keep the edges subdued.",
+        "improves": "The negative space makes the layers easier to distinguish and edges melt more naturally into the README.",
+        "measurements": {
+          "continuation.first_frame.dark_void_fraction": {
+            "v11": 0.2897744043854101,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.035
+          },
+          "continuation.still.dark_void_fraction": {
+            "v11": 0.2778831962892684,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.035
+          },
+          "opening.first_frame.dark_void_fraction": {
+            "v11": 0.34877450980392155,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.035
+          },
+          "opening.still.dark_void_fraction": {
+            "v11": 0.3363445378151261,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.035
+          }
+        }
+      },
+      "luminous_clusters": {
+        "matches": "Compact cores, soft surrounding halos and short afterglows remain visible in both upper scenes.",
+        "improves": "The moving core and halo separate more clearly against the field, with controlled afterglow and no harsh flashing.",
+        "measurements": {
+          "continuation.first_frame.core_fraction": {
+            "v11": 0.02382458359687961,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.006
+          },
+          "continuation.motion_core_pixels_median": {
+            "v11": 22,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 2
+          },
+          "continuation.motion_halo_pixels_median": {
+            "v11": 69,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 2
+          },
+          "continuation.still.core_fraction": {
+            "v11": 0.02707147375079064,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.006
+          },
+          "opening.first_frame.core_fraction": {
+            "v11": 0.03907563025210084,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.006
+          },
+          "opening.motion_core_pixels_median": {
+            "v11": 25,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 2
+          },
+          "opening.motion_halo_pixels_median": {
+            "v11": 79,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 2
+          },
+          "opening.still.core_fraction": {
+            "v11": 0.039740896358543415,
+            "unit": "pixel_fraction",
+            "direction": "within",
+            "tolerance": 0.006
+          }
+        }
+      },
+      "vertical_continuity": {
+        "matches": "Cyan and ember paths at the end of the opener meet corresponding paths in the continuation and travel down.",
+        "improves": "The path correspondence reads more clearly across the copy and the light travels downward more smoothly.",
+        "measurements": {
+          "continuation.downward_steps": {
+            "v11": 5,
+            "unit": "frame_transitions",
+            "direction": "minimum",
+            "tolerance": 0
+          },
+          "handoff.edge_light_profile_distance": {
+            "v11": 0.3912265320644166,
+            "unit": "normalized_profile_distance",
+            "direction": "maximum",
+            "tolerance": 0.035
+          },
+          "opening.downward_steps": {
+            "v11": 5,
+            "unit": "frame_transitions",
+            "direction": "minimum",
+            "tolerance": 0
+          }
+        }
+      },
+      "phone_legibility": {
+        "matches": "The three scenes hold their height at 255 px. Explore the projects. and Build with me. stay crisp in the GIF and still.",
+        "improves": "The type or small-screen composition reads more easily at 255 px without crowding the image.",
+        "measurements": {
+          "continuation.height_at_phone_px": {
+            "v11": 93,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 0
+          },
+          "nexus.height_at_phone_px": {
+            "v11": 75,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 0
+          },
+          "nexus.text_bright_fraction_min": {
+            "v11": 0.12831348444102958,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.004
+          },
+          "opening.height_at_phone_px": {
+            "v11": 112,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 0
+          }
+        }
+      },
+      "fibonacci_structure": {
+        "matches": "The banner keeps its Fibonacci spiral. The upper loops use 21 frames at 130 ms and the Nexus uses 34 frames at 80 ms.",
+        "improves": "Fibonacci scale and rhythm contribute more visibly to the composition while retaining the accepted cadence.",
+        "measurements": {
+          "continuation.frame_delay_ms": {
+            "v11": 130,
+            "unit": "milliseconds",
+            "direction": "within",
+            "tolerance": 0
+          },
+          "continuation.frames": {
+            "v11": 21,
+            "unit": "frames",
+            "direction": "within",
+            "tolerance": 0
+          },
+          "nexus.frame_delay_ms": {
+            "v11": 80,
+            "unit": "milliseconds",
+            "direction": "within",
+            "tolerance": 0
+          },
+          "nexus.frames": {
+            "v11": 34,
+            "unit": "frames",
+            "direction": "within",
+            "tolerance": 0
+          },
+          "opening.frame_delay_ms": {
+            "v11": 130,
+            "unit": "milliseconds",
+            "direction": "within",
+            "tolerance": 0
+          },
+          "opening.frames": {
+            "v11": 21,
+            "unit": "frames",
+            "direction": "within",
+            "tolerance": 0
+          }
+        }
+      },
+      "handoff_ontology": {
+        "matches": "The banner feeds the opener, the next scene resumes the field beneath the copy, and the Nexus leads into public projects.",
+        "improves": "The relationships between the banner, introduction, continuation and invitation are easier to follow.",
+        "measurements": {}
+      },
+      "continuous_motion": {
+        "matches": "Both upper scenes and the footer carry continuous visible motion and repeat without a noticeable jump.",
+        "improves": "The motion advances and returns more smoothly at 255 px while remaining visible.",
+        "measurements": {
+          "continuation.frame_delta_median": {
+            "v11": 3295.5,
+            "unit": "luminance_delta_sum",
+            "direction": "minimum",
+            "tolerance": 164.775
+          },
+          "continuation.loop_seam_ratio": {
+            "v11": 0.2982855408890912,
+            "unit": "ratio",
+            "direction": "maximum",
+            "tolerance": 0.05
+          },
+          "nexus.frame_delta_median": {
+            "v11": 2062,
+            "unit": "luminance_delta_sum",
+            "direction": "minimum",
+            "tolerance": 103.1
+          },
+          "nexus.loop_seam_ratio": {
+            "v11": 0.4131910766246363,
+            "unit": "ratio",
+            "direction": "maximum",
+            "tolerance": 0.05
+          },
+          "opening.frame_delta_median": {
+            "v11": 3484.0,
+            "unit": "luminance_delta_sum",
+            "direction": "minimum",
+            "tolerance": 174.2
+          },
+          "opening.loop_seam_ratio": {
+            "v11": 0.7006314580941446,
+            "unit": "ratio",
+            "direction": "maximum",
+            "tolerance": 0.05
+          }
+        }
+      },
+      "palette": {
+        "matches": "Blue filaments, contrasting cyan light, and ember dust and knots all remain discernible at 255 px.",
+        "improves": "The cyan and ember materials have clearer separation and richer depth without sacrificing either color.",
+        "measurements": {
+          "continuation.first_frame.blue_fraction": {
+            "v11": 0.39224119755429054,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "continuation.first_frame.ember_fraction": {
+            "v11": 0.08559983133038161,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "continuation.first_frame.ember_knot_fraction": {
+            "v11": 0.04292641787897955,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "continuation.still.blue_fraction": {
+            "v11": 0.39295804343242674,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "continuation.still.ember_fraction": {
+            "v11": 0.06987138941598145,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "continuation.still.ember_knot_fraction": {
+            "v11": 0.0393000210837023,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.first_frame.blue_fraction": {
+            "v11": 0.3481442577030812,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.first_frame.ember_fraction": {
+            "v11": 0.07552521008403361,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.first_frame.ember_knot_fraction": {
+            "v11": 0.04390756302521008,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.still.blue_fraction": {
+            "v11": 0.3742296918767507,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.still.ember_fraction": {
+            "v11": 0.0601890756302521,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          },
+          "opening.still.ember_knot_fraction": {
+            "v11": 0.03862044817927171,
+            "unit": "pixel_fraction",
+            "direction": "minimum",
+            "tolerance": 0.007
+          }
+        }
+      },
+      "pinned_handoff": {
+        "matches": "The footer remains a legible linked invitation, with steady type and a descending halo and core on each side.",
+        "improves": "The invitation is more immediate or the glows easier to see while the repository link and both lines remain clear.",
+        "measurements": {
+          "nexus.band_delay_frames_max": {
+            "v11": 7,
+            "unit": "frames",
+            "direction": "maximum",
+            "tolerance": 1
+          },
+          "nexus.core_pixels_min": {
+            "v11": 18,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 0
+          },
+          "nexus.halo_pixels_min": {
+            "v11": 42,
+            "unit": "pixels",
+            "direction": "minimum",
+            "tolerance": 0
+          }
+        }
+      }
+    }
   }
 }

@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Reject out-of-scope files and mixed artwork/editorial changes."""
 import argparse
+import json
 import re
 import subprocess
+
+ARTWORK_REVIEW = "assets/profile-artwork-review.json"
+QUALITY_EVALUATORS = {"scripts/verify_profile_visuals.py", "scripts/profile_release.py",
+                      "scripts/verify_profile_scope.py", ".github/workflows/profile-banner.yml"}
 
 PROFILE_ART = {
     "assets/hero.svg", "assets/profile-artwork.md", "assets/profile-artwork-review.json",
@@ -65,6 +70,12 @@ def verify_changes(paths, prior_readme=None, candidate_readme=None):
     artwork = (paths & PROFILE_ART) | archive_files
     if unknown := sorted(paths - PROFILE_FILES - archive_files):
         raise ProfileScopeError("Unrelated paths in this profile change: " + ", ".join(unknown))
+    release_paths = {path for path in paths if path.startswith("assets/")
+                     and re.fullmatch(MEDIA_PREFIX + MEDIA_FILENAME, path)}
+    if paths & QUALITY_EVALUATORS and (archive_files or release_paths
+                                      or paths & {"README.md", "assets/profile-releases.json",
+                                                  "scripts/render_profile_motion.py"}):
+        raise ProfileScopeError("Land quality evaluator changes separately from artwork and README changes.")
     if artwork and "AGENTS.md" in paths:
         raise ProfileScopeError("Put agent governance and artwork in separate changes.")
     if "README.md" in paths and prior_readme is None:
@@ -79,6 +90,12 @@ def verify_changes(paths, prior_readme=None, candidate_readme=None):
             prior_readme = prior_readme.rstrip().removesuffix(LEGACY_NEXUS)
         if readme_copy(prior_readme) != readme_copy(candidate_readme):
             raise ProfileScopeError("An artwork change may only edit the README's approved media markup.")
+
+
+def verify_quality_floor(prior, candidate):
+    floor = json.loads(prior).get("quality_floor")
+    if floor is not None and (not candidate or json.loads(candidate).get("quality_floor") != floor):
+        raise ProfileScopeError("The approved V11 quality floor is immutable.")
 
 
 def git(*args):
@@ -104,8 +121,15 @@ def main():
             prior = git("show", f"{base}:README.md")
             candidate = git("show", f"{target}:README.md")
         verify_changes(paths, prior, candidate)
+        if ARTWORK_REVIEW in paths:
+            prior_review = git("show", f"{base}:{ARTWORK_REVIEW}")
+            exists = subprocess.run(
+                ["git", "cat-file", "-e", f"{target}:{ARTWORK_REVIEW}"], capture_output=True
+            ).returncode == 0
+            candidate_review = git("show", f"{target}:{ARTWORK_REVIEW}") if exists else None
+            verify_quality_floor(prior_review, candidate_review)
         print(f"PASS: profile scope ({len(paths)} changed paths)")
-    except (ProfileScopeError, subprocess.CalledProcessError) as error:
+    except (ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"FAIL: {error}\n")
 
 

@@ -68,6 +68,45 @@ Keep the three GIFs under 250 kB combined. Update
 [profile-artwork-review.json](profile-artwork-review.json) after inspecting
 the exact files.
 
+## Compare new artwork with V11
+
+[profile-artwork-review.json](profile-artwork-review.json) contains the approved V11
+quality floor and per-criterion review rubric. Its values come from the archived
+V11 delivery, including the published GIFs and reduced-motion stills. Each
+measurement records its value, unit, allowed direction and tolerance at 255 px.
+The tolerances keep minor resampling or composition differences from triggering
+a regression. Each measurement must pass separately.
+
+```sh
+python scripts/verify_profile_visuals.py --measure active
+python scripts/verify_profile_visuals.py --measure working
+```
+
+The first command measures the artwork selected in the release catalog. The
+second measures the files in `assets/` before capture. Each emits a JSON object
+keyed by the metric names used in the rubric. Motion measurements use decoded
+frames. The handoff distance measures how similarly bright regions are
+distributed across the two edges. Inspect the actual transitions at desktop
+and phone width to judge filament depth, correspondence across the copy, and
+legibility of the invitation.
+
+For a new artwork release, update `candidate_evaluation` in the review record.
+Set `baseline` to `v11`, record the seven candidate artwork SHA-256 hashes in
+`sha256`, and supply every criterion in `criteria`. Each entry contains an
+integer `score` and an `evidence` note identifying the exact observation
+or side-by-side comparison. Score 0 means regression, 1 means V11 parity,
+and 2 means a visible improvement under that criterion's rubric. Every
+criterion must reach 1, and at least one must reach 2. Retain the ordinary asset
+and renderer digest review as well. Capture archives the assessment in the
+release catalog so restoring a version recovers its own evidence. The
+operator's visual approval still governs publication.
+
+Keep the V11 floor unchanged and land evaluator changes separately from
+artwork releases. The base-commit scope check rejects edits to the floor.
+The full release check evaluates candidates at capture and on pinned Git
+snapshots. A deliberate restore of an earlier archived version uses the
+existing two-file rollback path. It does not reset the V11 floor for new work.
+
 ## Keep changes scoped
 
 GitHub Actions checks every pull request for out-of-scope file paths and
@@ -136,10 +175,10 @@ media paths under `assets/`, then select the newly archived paths in the same
 PR so each artwork release has fresh URLs.
 
 ```sh
-python scripts/profile_release.py capture v11 --title "Your new expression"
+python scripts/profile_release.py capture v12 --title "Your new expression"
 git add -- README.md assets scripts
-git commit -m "Capture profile artwork v10"
-python scripts/profile_release.py restore v11 --apply
+git commit -m "Capture profile artwork v12"
+python scripts/profile_release.py restore v12 --apply
 python scripts/profile_release.py check
 ```
 
