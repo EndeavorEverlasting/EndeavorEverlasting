@@ -40,6 +40,17 @@ NEBULAE = (
     (350, 524), (374, 602), (273, 756), (531, 799),
 )
 
+# The orange field runs beside the teal signal and joins it at shared knots.
+WARM_ROUTES = (
+    ((675, -29), (668, 43), (618, 103), (602, 178), (523, 232), (431, 269),
+     (377, 309), (350, 355), (383, 399), (445, 429), (548, 465), (606, 521),
+     (585, 568), (544, 610), (523, 647), (552, 696), (611, 728), (640, 775),
+     (609, 818), (599, 854)),
+    ((80, 90), (154, 145), (124, 183), (171, 233), (229, 257), (289, 273), (377, 309)),
+    ((126, 393), (168, 456), (171, 503), (249, 548), (322, 567), (374, 602)),
+    ((374, 602), (307, 621), (215, 640), (153, 682), (125, 724), (166, 776), (204, 822)),
+)
+
 
 @dataclass(frozen=True)
 class Filament:
@@ -85,6 +96,39 @@ def deposit(np, channel, x, y, weights):
     for offset_x, wx in ((0, 1-dx), (1, dx)):
         for offset_y, wy in ((0, 1-dy), (1, dy)):
             np.add.at(channel, (iy+offset_y, ix+offset_x), weights*wx*wy)
+
+
+def render_warm_field(shape):
+    """Build orange dust, filaments and knots at three depths."""
+    import numpy as np
+    from scipy.ndimage import gaussian_filter
+
+    rng = np.random.default_rng(4297)
+    dust = np.zeros(shape, dtype=np.float32)
+    wisps = np.zeros_like(dust)
+    knots = np.zeros_like(dust)
+    for path in WARM_ROUTES:
+        for start, end in zip(path, path[1:]):
+            t = rng.beta(0.95, 0.95, 290)
+            bend = rng.uniform(-28, 28)
+            x, y = filament_path(np, Filament(start, end), t, bend)
+            grain = rng.lognormal(-0.37, 0.75, t.size)
+            scatter = 9 + 13*np.sin(pi*t)
+            deposit(np, dust, x + rng.normal(0, scatter), y + rng.normal(0, scatter), grain)
+            deposit(np, wisps, x + rng.normal(0, 5, t.size), y + rng.normal(0, 4, t.size), grain*rng.uniform(0.48, 1.3, t.size))
+        for index, (x, y) in enumerate(path[1:-1]):
+            count = 82 if index % 3 == 0 else 36
+            dx, dy = rng.normal(0, 5.4, (2, count))
+            deposit(np, knots, x+dx, y+dy, rng.lognormal(-0.15, 0.78, count))
+
+    veil = gaussian_filter(dust, (13, 21)) * 4.4
+    filaments = gaussian_filter(wisps + dust*0.32, (3.1, 4.7)) * 2.3
+    cluster = gaussian_filter(knots, (2.8, 4)) * 2
+    sparks = gaussian_filter(wisps + knots*0.31, 1.1) * 0.61
+    return (veil[..., None]*[0.84, 0.37, 0.14] +
+            filaments[..., None]*[1.21, 0.53, 0.19] +
+            cluster[..., None]*[1.23, 0.71, 0.35] +
+            sparks[..., None]*[1.39, 0.88, 0.47])
 
 
 def render_field():
@@ -148,13 +192,7 @@ def render_field():
              filaments[..., None]*[0.34, 0.74, 0.81] +
              clusters[..., None]*[0.59, 0.90, 0.87] +
              motes[..., None]*[0.68, 0.85, 0.91])
-    # Tint a few knots and their dust halos with the banner's coral accent.
-    x = np.arange(WIDTH)
-    y = np.arange(shape[0])[:, None] - margin
-    luminance = light @ np.array([0.21, 0.72, 0.07])
-    for cx, cy in ((80, 90), (698, 259), (171, 503), (647, 555), (215, 640), (616, 671)):
-        warm = np.exp(-(((x-cx)/27)**2 + ((y-cy)/18)**2))[..., None]
-        light = light*(1-warm) + (luminance[..., None]*[1.78, 0.86, 0.51])*warm
+    light += render_warm_field(shape)
     core_light = gaussian_filter(route, (2.6, 4.6)) * 5.3
     return light[margin:margin+HEIGHT], core_light[margin:margin+HEIGHT]
 
@@ -186,7 +224,7 @@ def panel_image(light, route, name, offset, phase=None):
             # An uneven split makes the two outgoing ripples feel like growth.
             travel = travel + np.clip((x-FOOTER_FORK[0])/170, -1, 1) * (y/height)*8
             pulse = np.exp(-(travel/11)**2)
-            boost = (np.minimum(1, route)*pulse*(0.60 + 0.23*(y/height)**2))[..., None]
+            boost = (np.minimum(1, route)*pulse*(0.60 + 0.35*(y/height)**2))[..., None]
         else:
             pulse = np.exp(-(travel/6.5)**2)
             boost = (np.minimum(1, route)*pulse*0.92)[..., None]
@@ -214,7 +252,7 @@ def render(output):
         sample = Image.new("RGB", (still.width, still.height*5))
         for index, frame in enumerate((still, frames[0], frames[5], frames[10], frames[15])):
             sample.paste(frame, (0, index*still.height))
-        palette = sample.quantize(colors=62, method=Image.Quantize.MEDIANCUT)
+        palette = sample.quantize(colors=73, method=Image.Quantize.MEDIANCUT)
         encoded = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in frames]
         encoded[0].save(output / f"{name}.gif", save_all=True, append_images=encoded[1:],
                         duration=FRAME_MS, loop=0, disposal=1, optimize=True)

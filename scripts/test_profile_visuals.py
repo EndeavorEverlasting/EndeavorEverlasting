@@ -14,7 +14,7 @@ from profile_release import archive_prefix, catalog
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
-    ProfileCheckError, check_artwork, check_cosmic_density, check_motion_pixels, check_review,
+    ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels, check_review,
     checked_images, gif_timing, verify_public,
 )
 
@@ -180,6 +180,15 @@ class ProfileVisualTests(unittest.TestCase):
         stationary = (ROOT / archive_prefix("v07") / PULSE).read_bytes()
         with self.assertRaisesRegex(ProfileCheckError, "footer branches"):
             check_motion_pixels({**self.assets, PULSE: stationary})
+
+    def test_previous_sparse_accent_fails_bicolor_density(self):
+        from PIL import Image
+
+        still = ROOT / archive_prefix("v08") / OPENING.replace(".gif", ".png")
+        with Image.open(still) as art:
+            phone = art.convert("RGB").resize((255, 112), Image.Resampling.LANCZOS)
+        with self.assertRaisesRegex(ProfileCheckError, "orange dust and orange knots"):
+            check_bicolor_density(phone, OPENING)
 
     def test_review_protects_assets_and_renderer(self):
         review = json.loads((ROOT / ARTWORK_REVIEW).read_text(encoding="utf-8"))

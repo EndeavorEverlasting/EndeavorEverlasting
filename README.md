@@ -1,11 +1,11 @@
 <!-- EndeavorEverlasting profile README. Keep this public-facing: no client data or unverifiable claims. -->
 <p align="center">
-  <img src="assets/profile-releases/v08/assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral handoffs stitch into a repeatable workflow and feed a blue and teal star field." />
+  <img src="assets/profile-releases/v09/assets/hero.svg" width="100%" alt="EndeavorEverlasting. Teal and coral handoffs stitch into a repeatable workflow and feed a blue and orange star field." />
 </p>
 
 <picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v08/assets/stitch-descent.png" />
-  <img src="assets/profile-releases/v08/assets/stitch-descent.gif" width="100%" alt="Light travels downward through blue and teal filaments, gathering into bright clusters along the way." />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v09/assets/stitch-descent.png" />
+  <img src="assets/profile-releases/v09/assets/stitch-descent.gif" width="100%" alt="Light travels downward through blue and orange filaments, gathering into bright clusters along the way." />
 </picture>
 
 # Threading complexity into stability
@@ -17,8 +17,8 @@ Turning everyday friction into durable systems.
 I'm the builder behind **EndeavorEverlasting**. I work at the intersection of **IT operations, automation, and agent-assisted development** — turning messy, manual processes into repeatable workflows with clear ownership and verifiable results.
 
 <picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v08/assets/stitch-resume.png" />
-  <img src="assets/profile-releases/v08/assets/stitch-resume.gif" width="100%" alt="The same cosmic web continues downward and spreads into new clusters." />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v09/assets/stitch-resume.png" />
+  <img src="assets/profile-releases/v09/assets/stitch-resume.gif" width="100%" alt="Layers of orange dust and blue filaments continue downward and spread into new clusters." />
 </picture>
 
 I care about what happens *after* a promising prototype: whether someone else can run it, recover when it fails, understand what changed, and trust the evidence.
@@ -45,6 +45,6 @@ I care about what happens *after* a promising prototype: whether someone else ca
 <sub>Building in public where practical. Some operational work stays private to protect people, systems, and organizations. <a href="https://github.com/EndeavorEverlasting?tab=repositories">Browse the work →</a></sub>
 
 <picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v08/assets/stitch-pulse.png" />
-  <img src="assets/profile-releases/v08/assets/stitch-pulse.gif" width="100%" alt="At the end of the cosmic web, soft pulses branch downward toward the pinned projects." />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/profile-releases/v09/assets/stitch-pulse.png" />
+  <img src="assets/profile-releases/v09/assets/stitch-pulse.gif" width="100%" alt="Blue and orange filaments meet as soft pulses branch downward toward the pinned projects." />
 </picture>

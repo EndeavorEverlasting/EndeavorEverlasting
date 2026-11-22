@@ -136,6 +136,7 @@ def current_version(root, base=None):
     data = catalog(root)
     verify_inventory(root, data["versions"])
     selected = data["active"]
+    additions = set()
     if base:
         require(REF.fullmatch(base), "Use a full base commit SHA.")
         git(root, "cat-file", "-e", f"{base}^{{commit}}")
@@ -146,9 +147,9 @@ def current_version(root, base=None):
             require(all(data["versions"].get(name) == entry for name, entry in original.items()),
                     "Existing profile versions are immutable. Capture a new version.")
             additions = set(data["versions"]) - set(original)
-            require(not additions or (not selected["archive"] and additions == {selected["id"]}),
+            require(not additions or additions == {selected["id"]},
                     "Publish one newly captured working expression at a time.")
-            if selected["archive"] and selected != baseline["active"]:
+            if selected["archive"] and not additions and selected != baseline["active"]:
                 paths = set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "--")
                             .decode("utf-8").split("\0")) - {""}
                 require(paths <= {"README.md", CATALOG},
@@ -161,7 +162,7 @@ def current_version(root, base=None):
             active_files = files
     readme = read_blob(root, "README.md").decode("utf-8")
     require(layout(readme) == expected, "Published media and layout must match the active version.")
-    if not selected["archive"]:
+    if not selected["archive"] or additions:
         for path, content in active_files.items():
             if path != "README.md":
                 require(read_blob(root, path) == content, f"Capture the changed artwork before publishing: {path}")
@@ -201,7 +202,7 @@ def restore(root, name, apply):
     data = catalog(root)
     require(name in data["versions"], f"Unknown version {name!r}. Run the list command.")
     current_version(root)
-    if data["active"]["id"] == name:
+    if data["active"] == {"id": name, "archive": True}:
         return "This profile version is already selected."
     blocks, _ = read_archive(root, name, data["versions"][name])
     readme = read_blob(root, "README.md").decode("utf-8")

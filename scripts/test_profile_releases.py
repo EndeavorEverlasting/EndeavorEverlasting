@@ -96,6 +96,14 @@ class ProfileReleaseTests(unittest.TestCase):
                          source.read_bytes())
         self.assertIn("next version ID", self.command("capture", next_version, "--title", "Overwrite").stderr)
 
+        self.commit("Capture the reviewed working art")
+        applied = self.command("restore", next_version, "--apply")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(current_version(self.root, base)[0], {"id": next_version, "archive": True})
+        self.assertIn(f"{ARCHIVES}/{next_version}/assets/", (self.root / "README.md").read_text())
+        (self.root / "assets/stitch-pulse.gif").write_bytes(b"unreviewed")
+        self.assertIn("Capture the changed artwork", self.command("check", "--base", base).stderr)
+
     def test_published_catalog_is_append_only(self):
         base = git(self.root, "rev-parse", "HEAD").decode().strip()
         data = catalog(self.root)
