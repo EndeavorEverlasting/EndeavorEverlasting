@@ -11,11 +11,12 @@ from render_profile_motion import (
     FRAME_MS, FRAMES, NEBULAE, PANELS, WIDTH, topology,
 )
 from profile_release import archive_prefix, catalog
-from verify_profile_scope import REPOSITORIES_URL
+from verify_profile_scope import NEXUS_ALT, NEXUS_MEDIA, REPOSITORIES_URL
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
-    ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels, check_review,
+    ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels,
+    check_nexus_pixels, check_review,
     checked_images, gif_timing, verify_public,
 )
 
@@ -26,7 +27,9 @@ class ProfileVisualTests(unittest.TestCase):
     def setUp(self):
         releases = catalog(ROOT)
         latest = max(releases["versions"], key=lambda version: int(version[1:]))
-        self.readme = (ROOT / archive_prefix(latest) / "README.md").read_text(encoding="utf-8")
+        latest_readme = (ROOT / archive_prefix(latest) / "README.md").read_text(encoding="utf-8")
+        self.nexus = bool(NEXUS_MEDIA.search(latest_readme))
+        self.readme = (ROOT / archive_prefix("v09") / "README.md").read_text(encoding="utf-8")
         self.expected = checked_images(self.readme)
         self.assets = {path: (ROOT / path).read_bytes() for path in ASSETS}
         self.urls = {path: f"/{REPO}/raw/main/{path}" for path in ASSETS}
@@ -49,8 +52,45 @@ class ProfileVisualTests(unittest.TestCase):
         )
 
     def test_current_checkout(self):
-        check_artwork(self.assets)
-        check_motion_pixels(self.assets)
+        check_artwork(self.assets, nexus=self.nexus)
+        check_motion_pixels(self.assets, nexus=self.nexus)
+
+    def test_nexus_artwork_links_both_invitations_to_public_work(self):
+        footer = self.pulse.replace(self.expected[PULSE][1], NEXUS_ALT)
+        linked = f'<a href="{REPOSITORIES_URL}">{footer}</a>'
+        live = self.live.replace(self.pulse, linked)
+        checked_images(live, live=True, nexus=True)
+        for wrong in (footer, linked.replace(REPOSITORIES_URL, "https://example.com"),
+                      linked.replace("Build with me.", ""), linked + "<p>Explore</p>"):
+            with self.subTest(wrong=wrong), self.assertRaises(ProfileCheckError):
+                checked_images(live.replace(linked, wrong), live=True, nexus=True)
+
+    def test_nexus_rejects_the_old_unlettered_poster(self):
+        if not self.nexus:
+            self.skipTest("The checkout has not captured its Nexus footer yet.")
+        path = PULSE.replace(".gif", ".png")
+        old_still = (ROOT / archive_prefix("v09") / path).read_bytes()
+        with self.assertRaisesRegex(ProfileCheckError, "same Nexus text"):
+            check_motion_pixels({**self.assets, path: old_still}, nexus=True)
+
+    def test_nexus_rejects_subtle_flicker_without_a_visible_halo(self):
+        if not self.nexus:
+            self.skipTest("The checkout has not captured its Nexus footer yet.")
+        from PIL import Image, ImageChops, ImageSequence
+
+        def phone(frame):
+            return frame.convert("RGB").resize((255, 75), Image.Resampling.LANCZOS).convert("L")
+
+        with Image.open(BytesIO(self.assets[PULSE])) as gif:
+            frames = [phone(frame) for frame in ImageSequence.Iterator(gif)]
+        with Image.open(BytesIO(self.assets[PULSE.removesuffix(".gif") + ".png"])) as poster:
+            still = phone(poster)
+        floor = frames[0]
+        for frame in frames[1:]:
+            floor = ImageChops.darker(floor, frame)
+        dimmed = [Image.blend(floor, frame, .35) for frame in frames]
+        with self.assertRaisesRegex(ProfileCheckError, "Visible glow"):
+            check_nexus_pixels(dimmed, still)
 
     def test_top_banner_and_bottom_pulse_are_bookends(self):
         for bad_markup in (
@@ -196,8 +236,10 @@ class ProfileVisualTests(unittest.TestCase):
 
     def test_old_stationary_footer_fails_decoded_motion_check(self):
         stationary = (ROOT / archive_prefix("v07") / PULSE).read_bytes()
+        still = PULSE.removesuffix(".gif") + ".png"
+        legacy_still = (ROOT / archive_prefix("v09") / still).read_bytes()
         with self.assertRaisesRegex(ProfileCheckError, "footer branches"):
-            check_motion_pixels({**self.assets, PULSE: stationary})
+            check_motion_pixels({**self.assets, PULSE: stationary, still: legacy_still})
 
     def test_previous_sparse_accent_fails_bicolor_density(self):
         from PIL import Image
@@ -215,7 +257,7 @@ class ProfileVisualTests(unittest.TestCase):
         # This alteration leaves GIF layout and block timing valid.
         gif = bytearray(release[OPENING])
         gif[13] ^= 1
-        check_artwork({**self.assets, OPENING: bytes(gif)})
+        check_artwork({**self.assets, OPENING: bytes(gif)}, nexus=self.nexus)
         for path, changed in ((OPENING, bytes(gif)), (RENDERER, b"flat line renderer")):
             with self.subTest(path=path), self.assertRaisesRegex(ProfileCheckError, "reviewed version"):
                 check_review(review, {**release, path: changed})

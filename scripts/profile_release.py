@@ -15,7 +15,8 @@ from tempfile import NamedTemporaryFile
 if __name__ == "__main__":
     sys.dont_write_bytecode = True
 
-from verify_profile_scope import FOOTER_INVITATION, MEDIA_FILENAME, PROFILE_MEDIA, RELEASE_ID, readme_copy
+from verify_profile_scope import FOOTER_INVITATION, MEDIA_FILENAME, NEXUS_MEDIA
+from verify_profile_scope import PROFILE_MEDIA, RELEASE_ID, readme_copy
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = "assets/profile-releases.json"
@@ -96,7 +97,8 @@ def layout(text):
             slot = "after_intro"
         elif after.startswith("### Selected work"):
             slot = "before_work"
-        elif not after or FOOTER_INVITATION.fullmatch(after):
+        elif not after or (not NEXUS_MEDIA.fullmatch(match.group())
+                           and FOOTER_INVITATION.fullmatch(after)):
             slot = "bottom"
         else:
             raise ReleaseError("A profile image is outside the supported layout positions.")
@@ -268,10 +270,12 @@ def capture(root, name, title):
         read_archive(root, existing, entry)
     require(title.strip(), "Provide a release title.")
     raw_readme = read_blob(root, "README.md")
-    checked_images(raw_readme.decode("utf-8"))
+    markup = raw_readme.decode("utf-8")
+    checked_images(markup)
+    nexus = bool(NEXUS_MEDIA.search(markup))
     artwork = {path: read_blob(root, path) for path in ASSETS}
-    check_artwork(artwork)
-    check_motion_pixels(artwork)
+    check_artwork(artwork, nexus=nexus)
+    check_motion_pixels(artwork, nexus=nexus)
     check_review(json.loads(read_blob(root, ARTWORK_REVIEW)),
                  {**artwork, RENDERER: read_blob(root, RENDERER)})
     require(not git(root, "status", "--porcelain", "--", CATALOG), "Commit pending catalog edits before capturing.")
@@ -428,6 +432,8 @@ def profile_status(root, *, compare=None, live=False):
                           "archive_path": path, "archive_url": published_path}
     blocks, files = read_archive(root, selected["id"], data["versions"][selected["id"]])
     readme = read_blob(root, "README.md").decode("utf-8")
+    invitation_medium = "artwork" if NEXUS_MEDIA.search(readme) else (
+        "text" if FOOTER_INVITATION.search(readme) else None)
     result = {
         "schema": 1,
         "checkout": {"commit": head, "branch": branch or None, "profile_changes_pending": pending},
@@ -435,7 +441,8 @@ def profile_status(root, *, compare=None, live=False):
                                  "artwork": remote["active"] if remote else None, "canonical_origin": canonical},
         "artwork": {**selected, **versions[selected["id"]], "scenes": scene_files(blocks, files)},
         "editorial": {"last_commit": editorial, "registry_baseline": baseline,
-                      "invitation_present": bool(FOOTER_INVITATION.search(readme))},
+                      "invitation_present": invitation_medium is not None,
+                      "invitation_medium": invitation_medium},
         "versions": versions, "next_artwork_version": next_release_id(versions),
         "history": events, "history_is_shallow": shallow,
     }
@@ -461,7 +468,7 @@ def format_status(data, history):
         f"Archive registered in {artwork['registered_commit'] or 'unknown'} | "
         f"{artwork['archive_url'] or artwork['archive_path']}",
         f"Editorial revision {copy_revision} | "
-        f"repository invitation {'present' if editorial['invitation_present'] else 'absent'}",
+        f"repository invitation {editorial['invitation_medium'] or 'absent'}",
     ]
     for slot, paths in artwork["scenes"].items():
         lines.append(f"  {slot}: {', '.join(Path(path).name for path in paths) or 'none'}")

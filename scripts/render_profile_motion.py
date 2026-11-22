@@ -11,6 +11,9 @@ DELIVERY_WIDTH = 704
 FIBONACCI = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233)
 FRAMES = FIBONACCI[6]
 FRAME_MS = FIBONACCI[5] * 10
+NEXUS_FRAMES = FIBONACCI[7]
+NEXUS_FRAME_MS = FIBONACCI[4] * 10
+NEXUS_SIZE = (704, 207)
 BACKGROUND = (13, 17, 23)
 BANNER_EXIT_X = 958
 BANNER_WIDTH = 1200
@@ -259,12 +262,64 @@ def render(output):
         offset += height
 
 
+def render_nexus_footer(output):
+    """Light the knots in both filaments from the typeset reduced-motion poster."""
+    import numpy as np
+    from PIL import Image
+
+    still = Image.open(output / "stitch-pulse.png").convert("RGB")
+    if still.size != NEXUS_SIZE:
+        raise ValueError(f"The Nexus poster must be {NEXUS_SIZE[0]}×{NEXUS_SIZE[1]}.")
+    pixels = np.asarray(still, dtype=np.float32)
+    y, x = np.mgrid[0:still.height, 0:still.width]
+    side = np.minimum(x, still.width - 1 - x) / still.width
+    edge = np.clip((.225 - side) / .022, 0, 1)
+    # Centers are aligned with luminous junctions in the fixed poster.
+    lanes = (
+        (((50, 70), (64, 99), (83, 122), (132, 150)), (.28, .73, 1)),
+        (((650, 58), (621, 104), (623, 129), (568, 157)), (1, .52, .19)),
+    )
+    emitters = []
+    for lane_index, (knots, color) in enumerate(lanes):
+        ink = np.array(color, dtype=np.float32)
+        for knot_index, (center_x, center_y) in enumerate(knots):
+            distance = ((x-center_x) / 1.16) ** 2 + (y-center_y) ** 2
+            core = 130 * np.exp(-distance / (2 * 4.2 ** 2))
+            halo = 72 * np.exp(-distance / (2 * 9.75 ** 2))
+            glow = np.maximum(0, (core + halo - 7) * edge)
+            delay = .06 + knot_index * .111 + lane_index * .50
+            emitters.append((delay, glow[..., None] * ink))
+
+    frames = []
+    for frame in range(NEXUS_FRAMES):
+        phase = frame / NEXUS_FRAMES
+        lit = pixels.copy()
+        for delay, glow in emitters:
+            pulse = max(0, np.cos(2 * np.pi * (phase-delay))) ** 28
+            echo = max(0, np.cos(2 * np.pi * (phase-delay-.085))) ** 30
+            lit += glow * (pulse + .18 * echo)
+        frames.append(Image.fromarray(np.rint(np.clip(lit, 0, 255)).astype("uint8")))
+
+    samples = Image.new("RGB", (still.width, still.height * 3))
+    for index, image in enumerate((still, frames[7], frames[18])):
+        samples.paste(image, (0, index * still.height))
+    palette = samples.quantize(colors=44, method=Image.Quantize.MEDIANCUT)
+    encoded = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
+    encoded[0].save(output / "stitch-pulse.gif", save_all=True, append_images=encoded[1:],
+                    duration=NEXUS_FRAME_MS, loop=0, disposal=1, optimize=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ASSETS)
+    parser.add_argument("--nexus-footer", action="store_true",
+                        help="Animate only the Nexus GIF from stitch-pulse.png in the output directory.")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    render(args.output)
+    if args.nexus_footer:
+        render_nexus_footer(args.output)
+    else:
+        render(args.output)
 
 
 if __name__ == "__main__":

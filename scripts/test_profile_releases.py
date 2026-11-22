@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from profile_release import ARCHIVES, CATALOG, REPO, catalog, current_version, encode
 from profile_release import git, read_archive, archive_layout, next_release_id, verify_live_checkout, ReleaseError
-from verify_profile_scope import FOOTER_INVITATION, REPOSITORIES_URL, readme_copy
+from verify_profile_scope import FOOTER_INVITATION, NEXUS_MEDIA, REPOSITORIES_URL, readme_copy
 from verify_profile_visuals import PROFILE, ProfileCheckError, verify_archived_public
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,7 +84,8 @@ class ProfileReleaseTests(unittest.TestCase):
 
     def test_invitation_survives_rollbacks_with_and_without_a_footer(self):
         readme = self.root / "README.md"
-        version = catalog(self.root)["active"]["id"]
+        version = "v09"
+        self.assertEqual(self.command("restore", version, "--apply").returncode, 0)
         invitation = (f'<p><strong>Explore projects.</strong> Start with the pins below. '
                       f'<a href="{REPOSITORIES_URL}">Browse all repositories</a></p>')
         original = FOOTER_INVITATION.sub("", readme.read_text()).rstrip()
@@ -102,6 +103,19 @@ class ProfileReleaseTests(unittest.TestCase):
                 if target != "v02":
                     self.assertTrue(text.split(invitation)[0].rstrip().endswith("</picture>"))
                 self.commit(f"Select {target}")
+
+    def test_linked_nexus_rolls_back_as_part_of_the_artwork(self):
+        readme = self.root / "README.md"
+        version = catalog(self.root)["active"]["id"]
+        original = readme.read_text()
+        if not NEXUS_MEDIA.search(original):
+            self.skipTest("The active release has no animated invitation yet.")
+        self.assertEqual(self.command("restore", "v09", "--apply").returncode, 0)
+        self.assertIsNone(NEXUS_MEDIA.search(readme.read_text()))
+        self.assertEqual(readme_copy(readme.read_text()), readme_copy(original))
+        self.commit("Restore the old closing art")
+        self.assertEqual(self.command("restore", version, "--apply").returncode, 0)
+        self.assertEqual(readme.read_text(), original)
 
     def test_dirty_and_corrupt_inputs_fail_without_overwriting(self):
         readme = self.root / "README.md"

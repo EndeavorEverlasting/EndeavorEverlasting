@@ -14,7 +14,7 @@ import time
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
 
-from verify_profile_scope import FOOTER_INVITATION, REPOSITORIES_URL
+from verify_profile_scope import FOOTER_INVITATION, NEXUS_ALT, NEXUS_MEDIA, REPOSITORIES_URL
 
 PROFILE = "https://github.com/EndeavorEverlasting"
 REPO = "EndeavorEverlasting/EndeavorEverlasting"
@@ -37,6 +37,7 @@ VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input",
 MAX_GIF_BYTES = 250_000
 FRAME_COUNT = 21
 FRAME_MS = 130
+NEXUS_CADENCE = (34, 80)
 LOOP_APPLICATIONS = (b"NETSCAPE2.0", b"ANIMEXTS1.0")
 ARTWORK_REVIEW = "assets/profile-artwork-review.json"
 RENDERER = "scripts/render_profile_motion.py"
@@ -61,11 +62,13 @@ class ProfileImages(HTMLParser):
         self.articles = []
         self.hidden_elements = []
         self.images = []
+        self.image_links = {}
         self.pictures = []
         self.body_text = []
         self.paragraphs = []
         self.links = []
         self.link_text = None
+        self.link_url = None
         self.picture = None
         self.positions = {text: [] for text in MILESTONES}
         self.feed(source)
@@ -95,10 +98,13 @@ class ProfileImages(HTMLParser):
             self.picture.append((self.getpos(), attrs))
         elif tag == "img":
             self.images.append((self.getpos(), attrs, self.picture))
+            if self.link_url:
+                self.image_links[self.getpos()] = urljoin(PROFILE, self.link_url)
         elif tag == "p":
             self.paragraphs.append(self.getpos())
         elif tag == "a" and attrs.get("href"):
             self.link_text = []
+            self.link_url = attrs["href"]
             self.links.append((self.getpos(), attrs["href"], self.link_text))
 
     def handle_data(self, data):
@@ -124,6 +130,7 @@ class ProfileImages(HTMLParser):
             self.picture = None
         elif tag == "a" and not self.hidden_elements:
             self.link_text = None
+            self.link_url = None
         if tag == "article" and self.articles:
             self.articles.pop()
 
@@ -154,7 +161,12 @@ def check_footer_text(page, position, invitation):
             "The repository invitation must end the README and link to the repository list.")
 
 
-def checked_images(source, *, live=False, invitation=None):
+def check_nexus_link(page, position, alt):
+    require(alt == NEXUS_ALT and page.image_links.get(position) == REPOSITORIES_URL,
+            "The Nexus invitation must link its accessible image to the public repository list.")
+
+
+def checked_images(source, *, live=False, invitation=None, nexus=False):
     if not live:
         source = re.sub(r"(?s)<!--.*?-->", "", source)
         source = re.sub(r"(?ms)^ {0,3}(\x60{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$", "", source)
@@ -200,7 +212,14 @@ def checked_images(source, *, live=False, invitation=None):
             positions[CONTINUATION] < second < work < closing < positions[PULSE],
             "Place the banner, opener, intro, continuation, body and pulse in reading order.")
     if live:
+        if nexus:
+            check_nexus_link(page, positions[PULSE], images[PULSE][1])
         check_footer_text(page, positions[PULSE], invitation)
+    elif images[PULSE][1] == NEXUS_ALT:
+        footer = NEXUS_MEDIA.search(source)
+        require(footer and not source[footer.end():].strip(),
+                "The linked Nexus invitation must end the README.")
+        check_nexus_link(page, positions[PULSE], images[PULSE][1])
     else:
         tail = re.split(r"</picture>", source, flags=re.I)[-1].lstrip()
         require(not tail or FOOTER_INVITATION.fullmatch(tail),
@@ -208,7 +227,7 @@ def checked_images(source, *, live=False, invitation=None):
     return images
 
 
-def gif_timing(content):
+def gif_timing(content, *, cadence=(FRAME_COUNT, FRAME_MS)):
     """Inspect GIF block framing and timing without image-library dependencies."""
     require(len(content) <= MAX_GIF_BYTES, "Profile GIF exceeds its 250 kB budget.")
     stream = BytesIO(content)
@@ -229,6 +248,7 @@ def gif_timing(content):
     if flags & 128:
         take(3 * (2 << (flags & 7)))
 
+    expected_frames, frame_ms = cadence
     frames = duration = delay = 0
     loop_seen = False
     while (block := take(1)) != b";":
@@ -239,7 +259,7 @@ def gif_timing(content):
             require(2 <= take(1)[0] <= 8, "Profile GIF has an invalid LZW code size.")
             skip_sub_blocks()
             require(delay >= 20, "Profile GIF requires explicit browser-safe frame delays.")
-            require(delay == FRAME_MS, "Profile GIF must keep a uniform Fibonacci frame delay.")
+            require(delay == frame_ms, "Profile GIF must keep a uniform Fibonacci frame delay.")
             frames += 1
             duration += delay
             delay = 0
@@ -264,7 +284,7 @@ def gif_timing(content):
         else:
             raise ProfileCheckError("Profile GIF contains an invalid GIF block.")
     require(loop_seen, "Profile GIF must repeat indefinitely.")
-    require(frames == FRAME_COUNT, "Profile GIF must contain the complete 21-frame cycle.")
+    require(frames == expected_frames, f"Profile GIF must contain the complete {expected_frames}-frame cycle.")
     return frames, duration
 
 
@@ -275,12 +295,13 @@ def read_url(url):
         return response.read()
 
 
-def check_artwork(asset_bytes):
+def check_artwork(asset_bytes, *, nexus=False):
     require(sum(len(asset_bytes[path]) for path in MOTION) <= MAX_GIF_BYTES,
             "The three GIFs together exceed the 250 kB budget.")
     for path, minimum_aspect in MOTION.items():
         animation = asset_bytes[path]
-        frames, duration = gif_timing(animation)
+        cadence = NEXUS_CADENCE if nexus and path == PULSE else (FRAME_COUNT, FRAME_MS)
+        frames, duration = gif_timing(animation, cadence=cadence)
         width, height = unpack("<HH", animation[6:10])
         require(height / width >= minimum_aspect,
                 f"{path} returns to a thin strip at phone widths.")
@@ -334,7 +355,50 @@ def check_footer_handoff(changes):
                 "Both footer branches must pulse downward toward the pinned projects.")
 
 
-def check_motion_pixels(asset_bytes):
+def check_nexus_pixels(frames, still):
+    from PIL import ImageChops
+
+    width, height = still.size
+    require(len(frames) == NEXUS_CADENCE[0], "The Nexus footer has an incomplete cycle.")
+    center = (round(width * .24), 0, round(width * .76), height)
+    type_bed = frames[0].crop(center)
+    require(all(ImageChops.difference(type_bed, frame.crop(center)).getbbox() is None
+                for frame in frames), "Keep the Nexus typography stationary during the loop.")
+    poster_delta = ImageChops.difference(type_bed, still.crop(center))
+    require(sum(poster_delta.tobytes()) / (poster_delta.width * poster_delta.height) <= 3,
+            "The reduced-motion poster must show the same Nexus text as the GIF.")
+    for art in (frames[0], still):
+        for start, end in ((.25, .50), (.52, .77)):
+            band = art.crop((round(width * .23), round(height * start),
+                             round(width * .77), round(height * end)))
+            legible = sum(band.histogram()[175:]) / (band.width * band.height)
+            require(.065 <= legible <= .23, "The Nexus poster needs two crisp lines at phone width.")
+
+    floor = frames[0]
+    for frame in frames[1:]:
+        floor = ImageChops.darker(floor, frame)
+    changes = [ImageChops.subtract(frame, floor) for frame in frames]
+    edge = round(width * .216)
+    bands = [round(height * fraction) for fraction in (.11, .36, .59, .88)]
+    for left, right in ((0, edge), (width - edge, width)):
+        peaks = []
+        for top, bottom in zip(bands, bands[1:]):
+            levels = [frame.crop((left, top, right, bottom)).tobytes() for frame in changes]
+            peak = max(range(len(levels)), key=lambda index: sum(levels[index]))
+            require(sum(value >= 20 for value in levels[peak]) >= 36
+                    and sum(value >= 40 for value in levels[peak]) >= 14,
+                    "Visible glow needs a bright core and surrounding halo on both sides of the Nexus.")
+            peaks.append(peak)
+        require(all(0 < (b-a) % len(frames) <= 8 for a, b in zip(peaks, peaks[1:])),
+                "Nexus glints must travel downward on both sides.")
+    deltas = [sum(ImageChops.difference(a, b).tobytes())
+              for a, b in zip(frames, frames[1:] + frames[:1])]
+    typical = median(deltas[:-1])
+    require(typical >= 1500 and 0 < deltas[-1] <= typical * 2,
+            "The Nexus glints must stay visible through a seamless repeat.")
+
+
+def check_motion_pixels(asset_bytes, *, nexus=False):
     """Measure the actual GIF frames after browser-like phone-scale resampling."""
     from PIL import Image, ImageChops, ImageSequence
 
@@ -347,11 +411,14 @@ def check_motion_pixels(asset_bytes):
         with Image.open(BytesIO(asset_bytes[path])) as gif:
             colored_frames = [phone_image(frame) for frame in ImageSequence.Iterator(gif)]
         frames = [frame.convert("L") for frame in colored_frames]
-        require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
-        check_cosmic_density(frames[0], path)
         still = path.removesuffix(".gif") + ".png"
         with Image.open(BytesIO(asset_bytes[still])) as image:
             still_rgb = phone_image(image)
+        if nexus and path == PULSE:
+            check_nexus_pixels(frames, still_rgb.convert("L"))
+            continue
+        require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
+        check_cosmic_density(frames[0], path)
         check_cosmic_density(still_rgb.convert("L"), still)
         deltas = []
         for first, second in zip(frames, frames[1:] + frames[:1]):
@@ -405,7 +472,8 @@ def check_review(review, release_bytes):
 
 
 def verify_public(expected_images, asset_bytes, invitation=None):
-    actual = checked_images(read_url(PROFILE).decode("utf-8"), live=True, invitation=invitation)
+    actual = checked_images(read_url(PROFILE).decode("utf-8"), live=True, invitation=invitation,
+                            nexus=expected_images[PULSE][1] == NEXUS_ALT)
     for path, (src, alt) in actual.items():
         require(alt == expected_images[path][1], f"Public {path} alternative text is stale.")
         require(read_url(urljoin(PROFILE, src)) == asset_bytes[path],
@@ -437,6 +505,8 @@ def verify_archived_public(blocks, name, archive_files, invitation=None):
             require(all(position < p for p, _ in actual.body_text),
                     "Public archived artwork moved away from the top of the README.")
         else:
+            if artwork.get("alt") == NEXUS_ALT:
+                check_nexus_link(actual, position, image.get("alt"))
             check_footer_text(actual, position, invitation)
         prefix = archive_prefix(name)
         for src, expected_path in files:
@@ -462,15 +532,19 @@ def main():
         readme = (root / "README.md").read_text(encoding="utf-8")
         match = FOOTER_INVITATION.search(readme)
         invitation = match.group() if match else None
+        nexus = bool(NEXUS_MEDIA.search(readme))
         if not selected["archive"]:
             expected = checked_images(readme)
             asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
-            check_artwork(asset_bytes)
-            check_motion_pixels(asset_bytes)
+            check_artwork(asset_bytes, nexus=nexus)
+            check_motion_pixels(asset_bytes, nexus=nexus)
             review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
             check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
         else:
             asset_bytes = {path: data for path, data in files.items() if path != "README.md"}
+            if nexus:
+                check_artwork(asset_bytes, nexus=True)
+                check_motion_pixels(asset_bytes, nexus=True)
         print(f"PASS active profile version: {selected['id']}")
         if args.live:
             for attempt in range(3):
