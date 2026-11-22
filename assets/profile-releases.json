@@ -2,7 +2,7 @@
   "schema": 1,
   "active": {
     "id": "v08",
-    "archive": false
+    "archive": true
   },
   "versions": {
     "v01": {
