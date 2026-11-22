@@ -1,16 +1,16 @@
 {
   "version": 1,
   "observations": {
-    "cosmic_density": "The first two panels carry the layered v09 web. The new footer uses crisply resolved cyan and ember filaments and fine grains near the edges.",
-    "dark_voids": "The closing artwork has an open dark type bed; the strands feather into the GitHub dark canvas at the perimeter.",
-    "luminous_clusters": "Small ice-blue and ember knots form in the sides of the closing artwork. The brightest region at center is the invitation text.",
+    "cosmic_density": "The v09 field remains above the closing invitation. The Nexus shows crisp cyan and ember filaments, with halos tied to specific junctions.",
+    "dark_voids": "The closing artwork has an open dark type bed. The strands feather into the GitHub dark canvas at the perimeter.",
+    "luminous_clusters": "Successive bright cyan and ember cores grow a surrounding halo and leave a small afterglow. Both paths were inspected at 255 px.",
     "vertical_continuity": "The banner and two text transitions carry the v09 blue and orange web. The final panel echoes their descending motion along both margins.",
-    "phone_legibility": "The two invitations remain legible at 255 px in the decoded GIF and its PNG still. The text does not move.",
-    "fibonacci_structure": "Earlier panels retain 21 frames at 130 ms. The Nexus runs at 34 frames and 80 ms with the golden ratio setting the slope and phase separation.",
+    "phone_legibility": "Both lines remain readable at 255 px in the encoded GIF and its PNG. Centered Instrument Sans makes Build with me the stronger line and stays steady.",
+    "fibonacci_structure": "Earlier panels retain 21 frames at 130 ms. The Nexus uses 34 frames at 80 ms. The banner retains its Fibonacci curve.",
     "handoff_ontology": "The cyan lane carries the invitation to explore and the ember lane carries the invitation to collaborate. The linked graphic opens the public work.",
-    "continuous_motion": "Both outer sides drift through a seamless, infinite 2.72-second loop. The static poster shows the same two invitations.",
+    "continuous_motion": "The cyan and ember paths rise and fade in turn across a seamless, infinite 2.72-second loop. The still poster carries the same wording.",
     "palette": "Cold blue and ember match the avatar and upper panels. Off-white and warm white set two distinct lines of stable text.",
-    "pinned_handoff": "The closing graphic occupies the former blank sides. Its glints drift down on both margins toward Pinned. The image is the final visible README content."
+    "pinned_handoff": "Illuminated knots progress downward on both sides toward Pinned. The reviewed poster and GIF have identical framing and type."
   },
   "sha256": {
     "assets/hero.svg": "d0a1af17ab2fd408cd5d6cb9c63a403ad0329474870f82aed64f32892220a49e",
@@ -18,8 +18,8 @@
     "assets/stitch-descent.png": "3b2733b52e816fab36b4a01b5bb1960d3b22ca60c9c5457331db76ee2e1e6661",
     "assets/stitch-resume.gif": "3a6a9d814bfa8716a2b95e25c95439a5c8ffa119e827f203daf51ca07679dee6",
     "assets/stitch-resume.png": "79e1407c1db056cad9b8fd31882b1c84a8c3b80b123c97b013800125e2ce27a5",
-    "assets/stitch-pulse.gif": "28e09b07af50321ad85eeb1cf99765aab0b36a2d0ebcc0f9ae9222d4b121d054",
-    "assets/stitch-pulse.png": "ed78202c13c980436e6c1611c55a9cbf713950e42a1cb1b997c67e097b146bde",
-    "scripts/render_profile_motion.py": "55572f25b6fdbdbfb13da15846eaedb04c147e5ffb3bc43040d3f2465729d1da"
+    "assets/stitch-pulse.gif": "ed7ab41bc7b7904f926659e166083dc4947d1c95763b0b9fa234e4169065a71b",
+    "assets/stitch-pulse.png": "6daf89a74f9f51be85a0857a18bd83808485310b2e9160c08d730ac7f74767ef",
+    "scripts/render_profile_motion.py": "b438a5b71b71e566856ba881dc554db0a6d9deca6abedc913071391e6da22a52"
   }
 }

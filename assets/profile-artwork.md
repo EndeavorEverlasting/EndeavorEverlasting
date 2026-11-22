@@ -5,8 +5,10 @@ Its lower-right output dissolves into the opener's blue and orange field. The fi
 carries a cyan-white signal down through clusters toward the introduction.
 The second resumes the same field beneath the copy and leads into the
 remaining sections. The v10 finale sets “Explore the projects.” and “Build with me.”
-inside the GIF. Glints travel down both margins of a surreal blue and ember
-cosmic web. The entire image opens the public repository list. Its alternative
+inside the GIF. The centered Instrument Sans setting gives the second line
+more weight and makes it the first invitation the eye lands on. Distinct cores
+and soft halos light up junctions down the cyan and ember routes in turn. Each
+junction has a faint afterglow. The entire image opens the public repository list. Its alternative
 text includes how to collaborate through an issue or pull request.
 
 The cosmic web is one deterministic density field sliced at the two text breaks.
@@ -18,8 +20,8 @@ emerge where clouds meet. Exposed wireframes, concentric rings, metallic tubes,
 claws and repeated root silhouettes fail visual review. Fibonacci proportions
 govern the density scales, phase period and cadence. The first two scenes use
 21 frames at 130 milliseconds. The Nexus footer has 34 frames at 80 milliseconds
-and uses the golden ratio for the direction and relative phase of its glints.
-The banner retains its Fibonacci spiral.
+and alternates the two paths in one 2.72-second loop. The banner retains its
+Fibonacci spiral.
 
 ## Regenerate and review
 
@@ -36,7 +38,9 @@ python -m unittest discover -s scripts -v
 ```
 
 The v10 PNG is the source poster for its GIF, with a generated cosmic-web plate
-and typeset copy. The `--nexus-footer` command uses that poster and regenerates
+and [Instrument Sans](https://github.com/Instrument/instrument-sans) lettering
+rasterized from the SIL Open Font License 1.1 typeface. The `--nexus-footer`
+command uses that poster and regenerates
 only the GIF. The unrestricted legacy renderer produces the earlier three-panel
 expression for comparison.
 
@@ -47,7 +51,8 @@ The validator checks the sequence, detached or misplaced panels, repeat
 metadata, downward signal, two independently descending footer pulses and matching reduced-motion stills.
 The first two panels retain the density and palette checks. The v10 footer checks
 two lines of steady, legible text, the repository link, a continuous seam and
-descending glints on both sides. Retain the visual review for shape and depth.
+descending glints with a minimum visible core and halo on both sides at 255 px.
+Retain the visual review for shape and depth.
 Keep the three GIFs under 250 kB combined. Update
 [profile-artwork-review.json](profile-artwork-review.json) after inspecting
 the exact files.

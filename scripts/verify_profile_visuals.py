@@ -374,11 +374,6 @@ def check_nexus_pixels(frames, still):
             legible = sum(band.histogram()[175:]) / (band.width * band.height)
             require(.065 <= legible <= .23, "The Nexus poster needs two crisp lines at phone width.")
 
-    deltas = [sum(ImageChops.difference(a, b).tobytes())
-              for a, b in zip(frames, frames[1:] + frames[:1])]
-    typical = median(deltas[:-1])
-    require(typical >= 650 and 0 < deltas[-1] <= typical * 2,
-            "The Nexus glints must stay visible through a seamless repeat.")
     floor = frames[0]
     for frame in frames[1:]:
         floor = ImageChops.darker(floor, frame)
@@ -388,11 +383,19 @@ def check_nexus_pixels(frames, still):
     for left, right in ((0, edge), (width - edge, width)):
         peaks = []
         for top, bottom in zip(bands, bands[1:]):
-            energy = [sum(frame.crop((left, top, right, bottom)).tobytes()) for frame in changes]
-            require(max(energy) >= 500, "Motion must reach both sides of the Nexus footer.")
-            peaks.append(energy.index(max(energy)))
+            levels = [frame.crop((left, top, right, bottom)).tobytes() for frame in changes]
+            peak = max(range(len(levels)), key=lambda index: sum(levels[index]))
+            require(sum(value >= 20 for value in levels[peak]) >= 36
+                    and sum(value >= 40 for value in levels[peak]) >= 14,
+                    "Visible glow needs a bright core and surrounding halo on both sides of the Nexus.")
+            peaks.append(peak)
         require(all(0 < (b-a) % len(frames) <= 8 for a, b in zip(peaks, peaks[1:])),
                 "Nexus glints must travel downward on both sides.")
+    deltas = [sum(ImageChops.difference(a, b).tobytes())
+              for a, b in zip(frames, frames[1:] + frames[:1])]
+    typical = median(deltas[:-1])
+    require(typical >= 1500 and 0 < deltas[-1] <= typical * 2,
+            "The Nexus glints must stay visible through a seamless repeat.")
 
 
 def check_motion_pixels(asset_bytes, *, nexus=False):

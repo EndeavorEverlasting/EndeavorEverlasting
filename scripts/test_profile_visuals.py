@@ -15,7 +15,8 @@ from verify_profile_scope import NEXUS_ALT, NEXUS_MEDIA, REPOSITORIES_URL
 from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
-    ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels, check_review,
+    ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels,
+    check_nexus_pixels, check_review,
     checked_images, gif_timing, verify_public,
 )
 
@@ -71,6 +72,25 @@ class ProfileVisualTests(unittest.TestCase):
         old_still = (ROOT / archive_prefix("v09") / path).read_bytes()
         with self.assertRaisesRegex(ProfileCheckError, "same Nexus text"):
             check_motion_pixels({**self.assets, path: old_still}, nexus=True)
+
+    def test_nexus_rejects_subtle_flicker_without_a_visible_halo(self):
+        if not self.nexus:
+            self.skipTest("The checkout has not captured its Nexus footer yet.")
+        from PIL import Image, ImageChops, ImageSequence
+
+        def phone(frame):
+            return frame.convert("RGB").resize((255, 75), Image.Resampling.LANCZOS).convert("L")
+
+        with Image.open(BytesIO(self.assets[PULSE])) as gif:
+            frames = [phone(frame) for frame in ImageSequence.Iterator(gif)]
+        with Image.open(BytesIO(self.assets[PULSE.removesuffix(".gif") + ".png"])) as poster:
+            still = phone(poster)
+        floor = frames[0]
+        for frame in frames[1:]:
+            floor = ImageChops.darker(floor, frame)
+        dimmed = [Image.blend(floor, frame, .35) for frame in frames]
+        with self.assertRaisesRegex(ProfileCheckError, "Visible glow"):
+            check_nexus_pixels(dimmed, still)
 
     def test_top_banner_and_bottom_pulse_are_bookends(self):
         for bad_markup in (
