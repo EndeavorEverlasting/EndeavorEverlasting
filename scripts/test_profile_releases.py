@@ -45,6 +45,22 @@ class ProfileReleaseTests(unittest.TestCase):
         return subprocess.run([sys.executable, "scripts/profile_release.py", *args],
                               cwd=self.root, capture_output=True, text=True)
 
+    def test_full_verification_rejects_dirty_inputs_and_uses_the_base_guard(self):
+        base = git(self.root, "rev-parse", "HEAD").decode().strip()
+        extra = self.root / "unrelated.txt"
+        extra.write_text("Outside the release.\n")
+        result = self.command("verify", "--base", base)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("needs a clean checkout", result.stderr)
+
+        guard = self.root / "scripts/verify_profile_scope.py"
+        guard.write_text(guard.read_text().replace('    main()\n', '    pass\n'))
+        self.commit("Propose a weaker scope guard and unrelated file")
+        result = self.command("verify", "--base", base)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unrelated paths in this profile change: unrelated.txt", result.stderr)
+        self.assertNotIn("PASS profile release checks", result.stdout)
+
     def test_every_version_restores_and_returns_to_original(self):
         data = catalog(self.root)
         original = data["active"]["id"]

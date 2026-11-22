@@ -4,6 +4,7 @@ import argparse
 from difflib import unified_diff
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -502,6 +503,27 @@ def format_status(data, history):
     return "\n".join(lines)
 
 
+def verify_checkout(root, base):
+    """Run release checks against one committed checkout."""
+    head = git(root, "rev-parse", "HEAD").decode().strip()
+    require(not git(root, "status", "--porcelain"), "Release verification needs a clean checkout.")
+    env = os.environ.copy()
+    if base is not None:
+        require(REF.fullmatch(base), "Use a full base commit SHA.")
+        scope = git(root, "show", f"{base}:scripts/verify_profile_scope.py")
+        subprocess.run([sys.executable, "-B", "-", "--range", base, head],
+                       cwd=root, input=scope, check=True)
+        env["PROFILE_RELEASE_BASE"] = base
+    else:
+        env.pop("PROFILE_RELEASE_BASE", None)
+    for command in (["scripts/verify_profile_banner.py"], ["scripts/verify_profile_visuals.py"],
+                    ["-m", "unittest", "discover", "-s", "scripts", "-v"]):
+        subprocess.run([sys.executable, "-B", *command], cwd=root, env=env, check=True)
+    require(git(root, "rev-parse", "HEAD").decode().strip() == head and
+            not git(root, "status", "--porcelain"), "Checkout changed during release verification.")
+    print(f"PASS profile release checks for {head}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="operation", required=True)
@@ -513,6 +535,8 @@ def main():
     status.add_argument("--live", action="store_true", help="Check GitHub default HEAD and rendered artwork/invitation.")
     check = sub.add_parser("check")
     check.add_argument("--base")
+    verify = sub.add_parser("verify", help="Run the full checkout verification used by Actions on main.")
+    verify.add_argument("--base", help="Full SHA for the prior scope and release rules.")
     recover = sub.add_parser("restore")
     recover.add_argument("version")
     recover.add_argument("--apply", action="store_true")
@@ -532,10 +556,14 @@ def main():
         elif args.operation == "check":
             selected, _, _ = current_version(ROOT, args.base)
             print(f"PASS: verified profile versions and active expression {selected['id']}")
+        elif args.operation == "verify":
+            verify_checkout(ROOT, args.base)
         elif args.operation == "restore":
             print(restore(ROOT, args.version, args.apply))
         else:
             print(capture(ROOT, args.version, args.title))
+    except subprocess.CalledProcessError as error:
+        parser.exit(error.returncode if error.returncode > 0 else 1, "FAIL: Profile release checks stopped.\n")
     except (ValueError, OSError, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"FAIL: {error}\n")
 
