@@ -63,6 +63,7 @@ class ProfileImages(HTMLParser):
         self.images = []
         self.pictures = []
         self.body_text = []
+        self.paragraphs = []
         self.links = []
         self.link_text = None
         self.picture = None
@@ -94,6 +95,8 @@ class ProfileImages(HTMLParser):
             self.picture.append((self.getpos(), attrs))
         elif tag == "img":
             self.images.append((self.getpos(), attrs, self.picture))
+        elif tag == "p":
+            self.paragraphs.append(self.getpos())
         elif tag == "a" and attrs.get("href"):
             self.link_text = []
             self.links.append((self.getpos(), attrs["href"], self.link_text))
@@ -148,7 +151,7 @@ def check_footer_text(page, position, invitation):
     expected_text = " ".join(text for _, text in expected.body_text)
     expected_links = [(REPOSITORIES_URL, " ".join(label).split()) for _, _, label in expected.links]
     require(trailing_text.split() == expected_text.split() and trailing_links == expected_links,
-            "The repository invitation must follow the pulsing artwork and link to the repository list.")
+            "The repository invitation must end the README and link to the repository list.")
 
 
 def checked_images(source, *, live=False, invitation=None):
@@ -441,6 +444,10 @@ def verify_archived_public(blocks, name, archive_files, invitation=None):
             content_path = expected_path.removeprefix(prefix + "/")
             require(read_url(urljoin(PROFILE, url)) == archive_files[content_path],
                     f"Public {expected_path} differs from the archived release.")
+    if not blocks["bottom"] and invitation is not None:
+        # Early expressions have no closing GIF. Their invitation still ends the README.
+        require(actual.paragraphs, "The public repository invitation is missing.")
+        check_footer_text(actual, actual.paragraphs[-1], invitation)
 
 
 def main():

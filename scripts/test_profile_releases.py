@@ -148,6 +148,12 @@ class ProfileReleaseTests(unittest.TestCase):
         }}
         with patch("verify_profile_visuals.read_url", side_effect=urls.__getitem__):
             verify_archived_public(blocks, "v02", files)
+            invitation = (f'<p><strong>Explore projects.</strong> Start with the pins below. '
+                          f'<a href="{REPOSITORIES_URL}">Browse all repositories</a></p>')
+            with self.assertRaisesRegex(ProfileCheckError, "invitation"):
+                verify_archived_public(blocks, "v02", files, invitation)
+            urls[PROFILE] = profile.replace("</article>", invitation + "</article>").encode()
+            verify_archived_public(blocks, "v02", files, invitation)
             urls[PROFILE] = profile.replace("<h3>Selected", "<p>Moved text</p><h3>Selected").encode()
             with self.assertRaisesRegex(ProfileCheckError, "text break"):
                 verify_archived_public(blocks, "v02", files)
