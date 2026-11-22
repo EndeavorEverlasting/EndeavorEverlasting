@@ -16,13 +16,21 @@ RELEASE_TOOLS = {
     ".githooks/pre-commit", ".github/workflows/profile-banner.yml",
     "scripts/verify_profile_scope.py", "scripts/test_profile_scope.py",
 }
+PROFILE_ART.add("assets/profile-releases.json")
+RELEASE_TOOLS.update({"scripts/profile_release.py", "scripts/test_profile_releases.py"})
 PROFILE_FILES = PROFILE_ART | RELEASE_TOOLS | {"README.md", "AGENTS.md"}
+MEDIA_FILENAME = r"(?:hero\.svg|first-stitch\.gif|stitch-(?:opening|continuation|descent|resume|pulse)\.(?:gif|png))"
+RELEASE_ID = r"v[0-9]{2,}"
+ARCHIVE_PATH = re.compile(rf"assets/profile-releases/{RELEASE_ID}/(?:README\.md|assets/{MEDIA_FILENAME})")
+MEDIA_PREFIX = rf"assets/(?:profile-releases/{RELEASE_ID}/assets/)?"
 PROFILE_MEDIA = re.compile(
-    r'(?m)^<picture>\s*<source\b[^>\n]*>\s*'
-    r'<img\s+src="assets/stitch-(?:descent|resume|pulse)\.gif"[^>\n]*>\s*'
-    r'</picture>\s*$|^<p align="center">\s*'
-    r'<img\s+src="assets/hero\.svg"[^>\n]*>\s*</p>\s*$'
+    rf'(?m)^<picture>[ \t]*\n[ \t]*<source\b[^>\n]*>\n[ \t]*'
+    rf'<img\s+src="{MEDIA_PREFIX}{MEDIA_FILENAME}"[^>\n]*>\n</picture>[ \t]*$'
+    rf'|^<p align="center">[ \t]*\n[ \t]*'
+    rf'<img\s+src="{MEDIA_PREFIX}hero\.svg"[^>\n]*>\n</p>[ \t]*$'
+    rf'|^<img\s+src="{MEDIA_PREFIX}first-stitch\.gif"[^>\n]*>[ \t]*$'
 )
+
 
 
 class ProfileScopeError(ValueError):
@@ -35,15 +43,17 @@ def readme_copy(markup):
 
 def verify_changes(paths, prior_readme=None, candidate_readme=None):
     paths = set(paths)
-    if unknown := sorted(paths - PROFILE_FILES):
+    archive_files = {path for path in paths if ARCHIVE_PATH.fullmatch(path)}
+    artwork = (paths & PROFILE_ART) | archive_files
+    if unknown := sorted(paths - PROFILE_FILES - archive_files):
         raise ProfileScopeError("Unrelated paths in this profile change: " + ", ".join(unknown))
-    if paths & PROFILE_ART and "AGENTS.md" in paths:
+    if artwork and "AGENTS.md" in paths:
         raise ProfileScopeError("Put agent governance and artwork in separate changes.")
     if "README.md" in paths and prior_readme is None:
         raise ProfileScopeError("The base README is required for scope comparison.")
     if "README.md" in paths and not candidate_readme:
         raise ProfileScopeError("The public README must remain present.")
-    if (paths & PROFILE_ART and "README.md" in paths and
+    if (artwork and "README.md" in paths and
             readme_copy(prior_readme) != readme_copy(candidate_readme)):
         raise ProfileScopeError("An artwork change may only edit the README's approved media markup.")
 
