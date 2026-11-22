@@ -1,8 +1,9 @@
 """Regression cases for the pre-commit and CI profile scope gate."""
+import json
 import unittest
 
 from verify_profile_scope import LEGACY_NEXUS, NEXUS_ALT, REPOSITORIES_URL
-from verify_profile_scope import ProfileScopeError, verify_changes
+from verify_profile_scope import ProfileScopeError, verify_changes, verify_quality_floor
 
 
 class ProfileScopeTests(unittest.TestCase):
@@ -29,6 +30,15 @@ class ProfileScopeTests(unittest.TestCase):
             verify_changes({"assets/stitch-pulse.gif", "AGENTS.md"})
         with self.assertRaisesRegex(ProfileScopeError, "approved media"):
             verify_changes({"README.md", "assets/stitch-pulse.gif"}, "# About", "# Changed heading")
+
+    def test_quality_floor_is_immutable_and_evaluator_changes_are_separate(self):
+        baseline = {"quality_floor": {"criterion": {"minimum": 10}}}
+        verify_quality_floor(json.dumps(baseline), json.dumps({**baseline, "candidate_evaluation": {}}))
+        for changed in (None, "{}", '{"quality_floor":{"criterion":{"minimum":9}}}'):
+            with self.subTest(changed=changed), self.assertRaisesRegex(ProfileScopeError, "immutable"):
+                verify_quality_floor(json.dumps(baseline), changed)
+        with self.assertRaisesRegex(ProfileScopeError, "separately"):
+            verify_changes({"scripts/verify_profile_visuals.py", "assets/profile-releases.json"})
 
     def test_protects_the_readme(self):
         with self.assertRaisesRegex(ProfileScopeError, "remain present"):

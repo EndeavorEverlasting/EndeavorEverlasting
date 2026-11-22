@@ -1,5 +1,7 @@
 """Regression cases for the profile rollout verification."""
 from collections import Counter
+from copy import deepcopy
+from hashlib import sha256
 from io import BytesIO
 import json
 from pathlib import Path
@@ -16,7 +18,7 @@ from verify_profile_visuals import (
     ARTWORK_REVIEW, ASSETS, BANNER, CONTINUATION, MILESTONES, OPENING, PROFILE, PULSE,
     REDUCED_MOTION, RENDERER, REPO,
     ProfileCheckError, check_artwork, check_bicolor_density, check_cosmic_density, check_motion_pixels,
-    check_nexus_pixels, check_review,
+    check_nexus_pixels, check_quality_floor, check_quality_measurements, check_review,
     checked_images, gif_timing, verify_public,
 )
 
@@ -265,6 +267,75 @@ class ProfileVisualTests(unittest.TestCase):
         notes.pop("cosmic_density")
         with self.assertRaisesRegex(ProfileCheckError, "every visual observation"):
             check_review({**review, "observations": notes}, release)
+
+    def test_v11_baseline_accepts_reference_and_catches_older_valid_art(self):
+        criteria = json.loads((ROOT / ARTWORK_REVIEW).read_text())["quality_floor"]["criteria"]
+        for version in ("v11", "v10"):
+            archive = ROOT / archive_prefix(version)
+            assets = {path: (archive / path).read_bytes() for path in ASSETS}
+            check_artwork(assets, nexus=True, report=False)
+            actual = check_motion_pixels(assets, nexus=True)
+            if version == "v11":
+                check_quality_floor(ROOT, assets, actual)
+            else:
+                with self.assertRaisesRegex(ProfileCheckError, "cosmic_density.*continuation"):
+                    check_quality_measurements(criteria, actual)
+
+    def test_quality_gate_rejects_dim_glow_even_with_a_motion_improvement(self):
+        floor = json.loads((ROOT / ARTWORK_REVIEW).read_text())["quality_floor"]["criteria"]
+        actual = {name: rule["v11"] for criterion in floor.values()
+                  for name, rule in criterion["measurements"].items()}
+        actual["opening.frame_delta_median"] *= 1.15
+        actual["nexus.halo_pixels_min"] -= 1
+        with self.assertRaisesRegex(ProfileCheckError, "nexus.halo_pixels_min"):
+            check_quality_measurements(floor, actual)
+
+    def test_new_artwork_requires_inspected_hashes_and_a_visible_improvement(self):
+        review = json.loads((ROOT / ARTWORK_REVIEW).read_text())
+        criteria = review["quality_floor"]["criteria"]
+        actual = {name: rule["v11"] for criterion in criteria.values()
+                  for name, rule in criterion["measurements"].items()}
+        archive = ROOT / archive_prefix("v11")
+        assets = {path: (archive / path).read_bytes() for path in ASSETS}
+        assets[BANNER] += b"\n"
+        evidence = {
+            "baseline": "v11",
+            "sha256": {path: sha256(content).hexdigest() for path, content in assets.items()},
+            "criteria": {name: {"score": 1, "evidence": "test evidence"} for name in criteria},
+        }
+        for change, message in (("stale", "exact delivered"), ("parity", "one visible improvement"),
+                                ("regression", "matches or improves"), ("improved", None)):
+            candidate = deepcopy(evidence)
+            if change == "stale":
+                candidate["sha256"][BANNER] = "0" * 64
+            if change in ("regression", "improved"):
+                candidate["criteria"]["luminous_clusters"]["score"] = 0 if change == "regression" else 2
+            with self.subTest(change=change), patch.object(Path, "read_text", return_value=json.dumps({
+                **review, "candidate_evaluation": candidate,
+            })):
+                if message:
+                    with self.assertRaisesRegex(ProfileCheckError, message):
+                        check_quality_floor(ROOT, assets, actual)
+                else:
+                    check_quality_floor(ROOT, assets, actual)
+
+    def test_restored_release_uses_its_archived_assessment(self):
+        review = json.loads((ROOT / ARTWORK_REVIEW).read_text())
+        criteria = review["quality_floor"]["criteria"]
+        actual = {name: rule["v11"] for criterion in criteria.values()
+                  for name, rule in criterion["measurements"].items()}
+        archive = ROOT / archive_prefix("v11")
+        assets = {path: (archive / path).read_bytes() for path in ASSETS}
+        assets[BANNER] += b"\n"
+        assessments = {name: {"score": 1, "evidence": "test evidence"} for name in criteria}
+        assessments["luminous_clusters"]["score"] = 2
+        evidence = {"baseline": "v11", "criteria": assessments,
+                    "sha256": {path: sha256(content).hexdigest() for path, content in assets.items()}}
+        versions = {**catalog(ROOT)["versions"], "v12": {"quality_evaluation": evidence}}
+        with patch.object(Path, "read_text", return_value=json.dumps({
+            **review, "candidate_evaluation": {"baseline": "another release"},
+        })), patch("profile_release.catalog", return_value={"versions": versions}):
+            self.assertEqual(check_quality_floor(ROOT, assets, actual, "v12"), evidence)
 
     def test_bad_motion_bytes(self):
         gif = self.assets[OPENING]
