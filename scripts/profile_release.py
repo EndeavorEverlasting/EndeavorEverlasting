@@ -449,7 +449,6 @@ def format_status(data, history):
     artwork, checkout, editorial = (data[key] for key in ("artwork", "checkout", "editorial"))
     dirty = " (pending profile edits)" if checkout["profile_changes_pending"] else ""
     origin = data["last_fetched_default"]
-    source = artwork["original_commit"] or artwork["registered_commit"] or "unknown"
     copy_revision = editorial["last_commit"] or (
         f"{editorial['registry_baseline']} (registry baseline)" if editorial["registry_baseline"] else "unknown")
     remote_art = f" (artwork {origin['artwork']['id']})" if origin["artwork"] else ""
@@ -457,7 +456,9 @@ def format_status(data, history):
         f"Checkout {checkout['branch'] or 'detached HEAD'} at {checkout['commit']}{dirty}",
         (f"Last fetched origin default {origin['ref'] or 'unknown'} {origin['commit'] or ''}" + remote_art).rstrip(),
         f"Artwork {artwork['id']} — {artwork['title']} ({'archive URLs' if artwork['archive'] else 'working URLs'})",
-        f"Artwork source {source} | {artwork['archive_url'] or artwork['archive_path']}",
+        f"Original artwork commit {artwork['original_commit'] or 'unknown'}",
+        f"Archive registered in {artwork['registered_commit'] or 'unknown'} | "
+        f"{artwork['archive_url'] or artwork['archive_path']}",
         f"Editorial revision {copy_revision} | "
         f"repository invitation {'present' if editorial['invitation_present'] else 'absent'}",
     ]
