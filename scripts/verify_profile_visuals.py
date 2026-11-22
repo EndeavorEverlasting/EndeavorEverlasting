@@ -37,8 +37,8 @@ FRAME_MS = 130
 LOOP_APPLICATIONS = (b"NETSCAPE2.0", b"ANIMEXTS1.0")
 ARTWORK_REVIEW = "assets/profile-artwork-review.json"
 RENDERER = "scripts/render_profile_motion.py"
-ARTWORK_CRITERIA = ("tapered_branches", "depth_and_material", "vertical_continuity",
-                    "phone_legibility", "no_sketch_edges", "fibonacci_structure",
+ARTWORK_CRITERIA = ("cosmic_density", "dark_voids", "luminous_clusters",
+                    "vertical_continuity", "phone_legibility", "fibonacci_structure",
                     "handoff_ontology", "continuous_motion")
 
 
@@ -263,6 +263,17 @@ def check_artwork(asset_bytes):
               f"{len(animation)} bytes, infinite loop", flush=True)
 
 
+def check_cosmic_density(image, path):
+    """Catch sparse line-art silhouettes and flatter fields at reading size."""
+    levels = image.histogram()
+    pixels = image.width * image.height
+    darkness = sum(levels[:31]) / pixels
+    filaments = sum(levels[31:105]) / pixels
+    cores = sum(levels[170:]) / pixels
+    require(0.19 <= darkness <= 0.62 and filaments >= 0.32 and 0.006 <= cores <= 0.12,
+            f"{path} must retain dark voids, diffuse filament density and compact luminous cores.")
+
+
 def check_motion_pixels(asset_bytes):
     """Measure the actual GIF frames after browser-like phone-scale resampling."""
     from PIL import Image, ImageChops, ImageSequence
@@ -275,11 +286,15 @@ def check_motion_pixels(asset_bytes):
     for path in MOTION:
         with Image.open(BytesIO(asset_bytes[path])) as gif:
             frames = [motion_size(frame) for frame in ImageSequence.Iterator(gif)]
+        require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
+        check_cosmic_density(frames[0], path)
+        still = path.removesuffix(".gif") + ".png"
+        with Image.open(BytesIO(asset_bytes[still])) as image:
+            check_cosmic_density(motion_size(image), still)
         deltas = []
         for first, second in zip(frames, frames[1:] + frames[:1]):
             changes = ImageChops.difference(first, second).histogram()
             deltas.append(sum(level*count for level, count in enumerate(changes)))
-        require(len(frames) == FRAME_COUNT, f"{path} has an incomplete decoded cycle.")
         typical = median(deltas[:-1])
         minimum = 900 if path == PULSE else 1600
         require(typical >= minimum, f"{path} has no legible motion at phone width.")
@@ -293,7 +308,7 @@ def check_motion_pixels(asset_bytes):
                 return sum(level*count for level, count in enumerate(image.crop(roi).histogram()))
 
             require(core_light(frames[0]) - core_light(frames[len(frames)//2]) > 1900,
-                    "Footer chamber must visibly brighten and dim.")
+                    "Footer cluster must visibly brighten and dim.")
         else:
             # Track the positive-light band against the darkest observed local
             # value. Check that it crosses a middle-height band downward.

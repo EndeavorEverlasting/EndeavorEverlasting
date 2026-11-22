@@ -1,23 +1,23 @@
 {
   "version": 1,
   "observations": {
-    "tapered_branches": "Curved teal and copper trunks carry attached forks and finer secondary branches.",
-    "depth_and_material": "Concentric cut rings and quarter-circle inlays sit behind the lit curved branches. The inset glass and metallic needle cross the branch plane.",
-    "vertical_continuity": "The four trunk positions, widths and color order carry across the introduction. The footer receives the continuation endpoints.",
-    "phone_legibility": "At a 255 px image width, primary forks and the hourglass can be distinguished in all three panels.",
-    "no_sketch_edges": "Visible trunks and primary forks have antialiased silhouettes and shaded volume.",
-    "fibonacci_structure": "Exact quarter circles, nested ring radii, branching cadence, depth layers and GIF timing share the Fibonacci sequence.",
-    "handoff_ontology": "The banner names fragmented handoffs and repeatable workflow. The animated needle stitches the convergence, stable strands rebranch, and the durational hourglass closes the page.",
-    "continuous_motion": "Two phase-wrapped descents and a breathing footer each have 21 frames at 130 ms and replay indefinitely. Each has a matching reduced-motion still."
+    "cosmic_density": "Overlapping dust and gas layers soften the filament mesh and widen at neighboring clusters.",
+    "dark_voids": "Irregular dark pockets separate bright reaches in all three panels, with no exposed geometric guides.",
+    "luminous_clusters": "Small violet, cool-white and sparse warm clusters sit within the same diffuse field. The footer center visibly brightens and dims.",
+    "vertical_continuity": "The banner emits at the common opening x-coordinate. The same directed route crosses both text seams, from upper right toward the introduction, then down into the footer.",
+    "phone_legibility": "Actual GIF frames at 255 px retain the brightest path, connected wisps, negative space and footer pulse.",
+    "fibonacci_structure": "The original banner spiral remains. Density blur scales and motion period draw from Fibonacci values, with 21 frames at 130 ms.",
+    "handoff_ontology": "The diagram\u2019s repeatable-workflow output diffuses into the same growth field, passes the two copy breaks, and gathers into a recurring terminal glow.",
+    "continuous_motion": "Each GIF repeats indefinitely with controlled last-to-first transitions and a dimension-matched reduced-motion still."
   },
   "sha256": {
-    "assets/hero.svg": "5ab395133d1e477c0baa4489efbcf789ee9e64ff4db398f168d41efbfa378b65",
-    "assets/stitch-descent.gif": "48528d54d888791a97c3c28b06073cb18b83bbbe542cdf35e0994ce9bb3702b0",
-    "assets/stitch-descent.png": "1114da39e76e2b7babed66b79373157f9d5789a6775c0b330da5146c5d0cd942",
-    "assets/stitch-pulse.gif": "fa16cbca01cffc513db0890bf148eed664f23a825c6543274fba589f4e887579",
-    "assets/stitch-pulse.png": "32533127b15d0e0724407806923b20060e0f3f9cdf4f580fc3f4ae19f3a45774",
-    "assets/stitch-resume.gif": "70d7fa66b49c430c8b0b899481f7e5aff62338b20e5578dd089e892a50ac34e9",
-    "assets/stitch-resume.png": "d4c02ae4c040a81a031927a408b54a35ee30a4ac7872be12e24150d38c145ecd",
-    "scripts/render_profile_motion.py": "0051b795ff28abd2c0c8130659f111b2f5de04811aac54c1c85c354f2b8ec0b2"
+    "assets/hero.svg": "f4ed04468777cdb7483d14759d4c26ea304d43af14b7ea655f8b4478a8f9904c",
+    "assets/stitch-descent.gif": "acc90cffe5623171d5445b03babd653b7745b1b9bbae7536a8ca5e0431b80061",
+    "assets/stitch-descent.png": "0b19b159527a7a6d3f9c6704419360741850dcdbd8614f3ee1772baf743430ed",
+    "assets/stitch-pulse.gif": "efd04f8a2db280dff2e68074533967475e1bf37da50041515c491e8fbe338379",
+    "assets/stitch-pulse.png": "7e0aafac4ccbed9ae73f56439ba311eff27d863ba186fc7e2a900b985c1ea2bf",
+    "assets/stitch-resume.gif": "d8201ef5720ef889e543117761525d1a36a0e33f09d021704221b6cdd4d1ffe3",
+    "assets/stitch-resume.png": "10dac91f0309de4b2b6f2ac8e5ecebb602ddd32d927aafb92604b744a817cae8",
+    "scripts/render_profile_motion.py": "220f09d800fc84bbed8d9268fdc756666b0269cb489d65e43d12f9962a381590"
   }
 }

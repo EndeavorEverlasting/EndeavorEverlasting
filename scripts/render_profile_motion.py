@@ -1,396 +1,220 @@
 #!/usr/bin/env python3
-"""Render the profile artwork described in assets/profile-artwork.md."""
+"""Render one cosmic-web density field in three slices for the profile README."""
 import argparse
 from dataclasses import dataclass
-from math import atan2, cos, pi, sin, tau
+from math import cos, pi, tau
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 WIDTH = 768
-OPENING_HEIGHT = 384
-CONTINUATION_HEIGHT = 304
-PULSE_HEIGHT = 233
+DELIVERY_WIDTH = 704
 FIBONACCI = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233)
-RING_RADII = FIBONACCI[-6:]
-SPIRAL_RADII = FIBONACCI[5:11]
-HANDOFF = tuple(WIDTH//2 + spacing for spacing in (-55, -21, 21, 55))
-ENDPOINTS = (94, 250, 519, 675)
-TEAL = (31, 157, 169)
-AMBER = (194, 103, 50)
-SCALE = 2
 FRAMES = FIBONACCI[6]
-FRAME_MS = FIBONACCI[5]*10
-WAVE_PERIOD = 2*FIBONACCI[-2]
-WAVE_WIDTH = FIBONACCI[5]
-OPENING = (
-    ((92, 13), (90, 69, 162, 75, 221, 118), (285, 165, 314, 206, 325, 264),
-     (335, 308, 331, 348, HANDOFF[0], 371)),
-    ((205, 13), (201, 65, 212, 99, 278, 144), (357, 195, 362, 221, 361, 281),
-     (360, 322, 369, 350, HANDOFF[1], 371)),
-    ((553, 13), (546, 67, 512, 105, 468, 133), (398, 179, 405, 222, 404, 280),
-     (407, 322, 399, 352, HANDOFF[2], 371)),
-    ((677, 13), (678, 65, 616, 89, 565, 113), (495, 145, 435, 203, 438, 259),
-     (440, 304, 429, 355, HANDOFF[3], 371)),
+FRAME_MS = FIBONACCI[5] * 10
+BACKGROUND = (13, 17, 23)
+BANNER_EXIT_X = 958
+BANNER_WIDTH = 1200
+ENTRY_X = round(WIDTH * BANNER_EXIT_X / BANNER_WIDTH)
+PANELS = (("stitch-descent", 336), ("stitch-resume", 280), ("stitch-pulse", 216))
+HEIGHT = sum(height for _, height in PANELS)
+FOOTER_CENTER = (WIDTH // 2, HEIGHT - PANELS[-1][1] // 2)
+# The flow route is a chain of clouds from the banner output through both
+# picture boundaries and into the terminal cluster. No route is painted as a stroke.
+FLOW = (
+    (ENTRY_X, -25), (593, 34), (511, 96), (466, 143), (376, 186), (322, 253),
+    (279, 311), (265, 351), (302, 394), (395, 439), (488, 493), (521, 548),
+    (502, 592), (482, 640), (441, 675), FOOTER_CENTER, (354, 796), (323, 861),
 )
-CONTINUATION = (
-    ((HANDOFF[0], 13), (334, 60, 345, 110, 297, 144), (261, 168, 208, 174, 149, 210),
-     (119, 228, 98, 253, ENDPOINTS[0], 291)),
-    ((HANDOFF[1], 13), (369, 61, 356, 119, 344, 157), (333, 195, 281, 208, 265, 236),
-     (255, 254, 250, 270, ENDPOINTS[1], 291)),
-    ((HANDOFF[2], 13), (399, 67, 400, 115, 422, 154), (446, 193, 480, 207, 499, 237),
-     (509, 254, 519, 268, ENDPOINTS[2], 291)),
-    ((HANDOFF[3], 13), (433, 69, 418, 103, 470, 145), (519, 185, 594, 190, 634, 222),
-     (659, 241, 675, 262, ENDPOINTS[3], 291)),
+# Knots and adjacent lanes leave asymmetric voids of different sizes.
+NEBULAE = (
+    (344, -28), (204, 40), (80, 90), (124, 183), (55, 263), (161, 303),
+    (125, 393), (31, 468), (171, 503), (93, 582), (215, 640), (125, 724),
+    (62, 788), (239, 832), (301, 697), (219, 437), (230, 173),
+    (683, 82), (739, 153), (602, 199), (698, 259), (594, 324), (704, 375),
+    (626, 458), (734, 504), (647, 555), (734, 632), (616, 671), (704, 728),
+    (573, 753), (697, 804), (555, 850), (374, 92), (518, 269), (455, 350),
+    (350, 524), (374, 602), (273, 756), (531, 799),
 )
-
-
-# The bottom receives the spread endpoints and passes them behind the same
-# durational centerpiece. They re-emerge in the Fibonacci handoff spacing.
-PULSE = (
-    ((ENDPOINTS[0], 13), (114, 65, 207, 68, 275, 90), (328, 112, 327, 163, HANDOFF[0], 220)),
-    ((ENDPOINTS[1], 13), (261, 62, 329, 70, 346, 103), (366, 132, 353, 168, HANDOFF[1], 220)),
-    ((ENDPOINTS[2], 13), (515, 60, 442, 69, 421, 104), (402, 135, 415, 172, HANDOFF[2], 220)),
-    ((ENDPOINTS[3], 13), (652, 60, 551, 64, 493, 90), (441, 113, 441, 161, HANDOFF[3], 220)),
-)
-
-
-def verify_thread_direction(opening, continuation):
-    for height, shape in ((OPENING_HEIGHT, opening), (CONTINUATION_HEIGHT, continuation)):
-        for start, *segments in shape:
-            vertical = [start[1], *(point for segment in segments for point in segment[1::2])]
-            if vertical != sorted(vertical) or vertical[0] > 16 or vertical[-1] < height - 16:
-                raise ValueError("Each profile thread must run from the top to the bottom.")
-    if tuple(curve[-1][-2] for curve in opening) != tuple(curve[0][0] for curve in continuation):
-        raise ValueError("Opening and continuation thread endpoints must align across the copy.")
-    if tuple(curve[-1][-2] for curve in continuation) != tuple(curve[0][0] for curve in PULSE):
-        raise ValueError("The footer must receive the continuation endpoints.")
-
-
-def fibonacci_spiral(start, rotation):
-    """Walk tangent quarter circles whose radii are successive Fibonacci numbers."""
-    x, y = start
-    points = [(x, y)]
-    for index, radius in enumerate(SPIRAL_RADII):
-        angle = rotation + index*pi/2
-        center_x, center_y = x-radius*cos(angle), y-radius*sin(angle)
-        for step in range(1, 65):
-            theta = angle + step*pi/128
-            points.append((center_x + radius*cos(theta), center_y + radius*sin(theta)))
-        x, y = points[-1]
-    return tuple(points)
 
 
 @dataclass(frozen=True)
-class Branch:
-    points: tuple
-    radii: tuple
-    color: tuple
-    depth: float
-    signal: int | None = None
+class Filament:
+    start: tuple[int, int]
+    end: tuple[int, int]
+    flow: bool = False
 
 
-def sample_curve(start, segments):
-    points = [start]
-    x, y = start
-    for x1, y1, x2, y2, x3, y3 in segments:
-        for step in range(1, 65):
-            t = step / 64
-            s = 1 - t
-            points.append((s**3*x + 3*s*s*t*x1 + 3*s*t*t*x2 + t**3*x3,
-                           s**3*y + 3*s*s*t*y1 + 3*s*t*t*y2 + t**3*y3))
-        x, y = x3, y3
-    return tuple(points)
+def topology():
+    """Connect each neighboring cloud into an interlaced volumetric field."""
+    strands = [Filament(a, b, True) for a, b in zip(FLOW, FLOW[1:])]
+    nodes = FLOW + NEBULAE
+    seen = {frozenset((edge.start, edge.end)) for edge in strands}
+    for start in NEBULAE:
+        adjacent = sorted((point for point in nodes if point != start),
+                          key=lambda point: (point[0]-start[0])**2 + (point[1]-start[1])**2)
+        for end in adjacent[:3]:
+            pair = frozenset((start, end))
+            if pair not in seen:
+                strands.append(Filament(start, end))
+                seen.add(pair)
+    return strands
 
 
-def taper(points, root, tip):
-    last = len(points) - 1
-    return tuple(tip + (root - tip) * (1 - i / last)**0.72 for i in range(len(points)))
+def filament_path(np, strand, t, shift):
+    x0, y0 = strand.start
+    x1, y1 = strand.end
+    # One broad bend with small turbulent variation. Both vanish into each cloud.
+    turn = np.sin(pi*t) * shift + np.sin(tau*t) * shift * 0.17
+    distance = max(1, ((x1-x0)**2 + (y1-y0)**2)**0.5)
+    return x0+(x1-x0)*t-turn*(y1-y0)/distance, y0+(y1-y0)*t+turn*(x1-x0)/distance
 
 
-def fork(start, previous, offset, length):
-    x, y = start
-    heading = atan2(y - previous[1], x - previous[0])
-    dx, dy = cos(heading), sin(heading)
-    return sample_curve(start, ((x + dx*22, y + min(dy*21, length*0.65), x + offset*0.72, y + length*0.45,
-                                 x + offset, y + length),))
+def deposit(np, channel, x, y, weights):
+    """Scatter energy bilinearly without clumping onto single raster cells."""
+    # Include overscan knots so the profile crops lie inside the same cloud.
+    y = y + FIBONACCI[-4]
+    valid = (x >= 0) & (x < WIDTH-1) & (y >= 0) & (y < channel.shape[0]-1)
+    x, y, weights = x[valid], y[valid], weights[valid]
+    ix, iy = x.astype(int), y.astype(int)
+    dx, dy = x-ix, y-iy
+    for offset_x, wx in ((0, 1-dx), (1, dx)):
+        for offset_y, wy in ((0, 1-dy), (1, dy)):
+            np.add.at(channel, (iy+offset_y, ix+offset_x), weights*wx*wy)
 
 
-def dendrites(curves, height, opening):
-    branches = []
-    for index, curve in enumerate(curves):
-        points = sample_curve(curve[0], curve[1:])
-        color = TEAL if index % 2 == 0 else AMBER
-        side = -1 if index < 2 else 1
-        # Each trunk carries the same branch orders in different positions.
-        # Junction cadence uses Fibonacci offsets in the subdivided curves.
-        positions = (21, 34, 55, 89, 144)
-        shift = (0, 13, 8, -5)[index] + (0 if opening else 34)
-        for order, (attach, reach, length) in enumerate(zip(
-                positions, (55, 89, 144, 89, 55), (55, 55, 89, 55, 34))):
-            start = attach + shift
-            if start >= len(points):
-                continue
-            x, y = points[start]
-            target_x = max(17, min(WIDTH - 17, x + side*reach))
-            length = min(length, height-y-21)
-            if length < 21:
-                continue
-            fork_points = fork(points[start], points[start-1], target_x-x, length)
-            fork_radii = taper(fork_points, (5, 5, 5, 3, 3)[order], 0.55)
-            depth = 1.1 + index*0.42 - order*0.92
-            branches.append(Branch(fork_points, fork_radii, color, depth))
-            for attach, turn, reach in ((21, 1, 34), (34, -1, 21)):
-                x, y = fork_points[attach]
-                if height-y < 34:
-                    continue
-                twig = fork(fork_points[attach], fork_points[attach-1],
-                            max(12, min(WIDTH-12, x + turn*side*reach))-x,
-                            min(21 + 13*(turn == 1), height-y-6))
-                branches.append(Branch(twig, taper(twig, fork_radii[attach]*0.68, 0.34),
-                                       color, depth - 0.8))
-        # Recessed filaments follow two larger orders at lower luminance.
-        for i, reach in enumerate((233, 144)):
-            start = (13, 55)[i] if opening else (55, 89)[i]
-            dim = tuple(round(channel*0.62) for channel in color)
-            x, y = points[start]
-            endpoint_x = max(24, min(WIDTH - 24, x + side*reach))
-            points_back = fork(points[start], points[start-1],
-                               endpoint_x-x, min((144, 89)[i], height-y-21))
-            branches.append(Branch(points_back, taper(points_back, 3, 0.52), dim, -13 - i*5))
-        # These four handoff fibers have matching tip widths and color.
-        radii = tuple(3 + (5 if opening else 3) * sin(pi*i/(len(points)-1))**0.8
-                      for i in range(len(points)))
-        branches.append(Branch(points, radii, color, 6 + index*1.35, index))
-    return branches
+def render_field():
+    import numpy as np
+    from scipy.ndimage import gaussian_filter
+
+    rng = np.random.default_rng(8113)
+    margin = FIBONACCI[-4]
+    shape = (HEIGHT + 2*margin, WIDTH)
+    dust = np.zeros(shape, dtype=np.float32)
+    gas = np.zeros_like(dust)
+    route = np.zeros_like(dust)
+    cores = np.zeros_like(dust)
+    background_dust = np.zeros_like(dust)
+    for edge in topology():
+        shift = rng.uniform(-34, 34)
+        t = rng.beta(0.83, 0.83, 450 if edge.flow else 270)
+        x, y = filament_path(np, edge, t, shift)
+        dispersion = 5 + 13*np.sin(pi*t)**1.4
+        density = (1.3 if edge.flow else 0.67) * rng.lognormal(-0.17, 0.85, t.size)
+        deposit(np, gas, x+rng.normal(0, dispersion), y+rng.normal(0, dispersion), density)
+        detail = rng.normal(0, 3.7 + 5*np.sin(pi*t), (2, t.size))
+        deposit(np, dust, x+detail[0], y+detail[1], density*rng.uniform(0.35, 1.4, t.size))
+        # Recessed wisps cross the deepest parts of the inter-cloud voids.
+        fine_t = rng.beta(1.5, 1.5, 119)
+        fx, fy = filament_path(np, edge, fine_t, -shift*1.25)
+        deposit(np, background_dust, fx + rng.normal(0, 9.5, fine_t.size),
+                fy + rng.normal(0, 9.5, fine_t.size), rng.uniform(0.08, 0.49, fine_t.size))
+        if edge.flow:
+            # Directed signal lights up a narrow selection of the same dust.
+            steps = np.linspace(0, 1, 144)
+            px, py = filament_path(np, edge, steps, shift)
+            deposit(np, route, px, py, np.full(steps.size, 2.0))
+    for index, (x, y) in enumerate(FLOW[1:-1] + NEBULAE):
+        primary = index < len(FLOW)-2
+        prominent = (x, y) == FOOTER_CENTER or primary and index % 3 == 0
+        count = 127 if prominent else 79 if primary else 41
+        spread = 5.6 if prominent else 3.6 if primary else 3.75
+        rx, ry = rng.normal(0, spread, (2, count))
+        jitter = rng.lognormal(-0.23, 0.75, count)
+        deposit(np, cores, x+rx, y+ry, (1.4 if prominent else 0.83)*jitter)
+        deposit(np, dust, x+rx*2.1, y+ry*1.47, jitter*1.23)
+
+    # Fibonacci blur scales separate broad violet density, luminous strands and
+    # compact stellar knots. High-frequency variation stays spatial, not temporal.
+    veil = gaussian_filter(gas + background_dust * 2, (13, 21)) * 6.2
+    plasma = gaussian_filter(gas + dust * 0.39, (5, 8)) * 3.9
+    filaments = gaussian_filter(dust, (1.5, 2.2)) * 1.58
+    clusters = gaussian_filter(cores, (2.7, 4.3)) * 2.20
+    motes = gaussian_filter(dust + cores*0.48, 0.58) * 0.30
+    far = gaussian_filter(background_dust, (2.1, 3.4)) * 3.2
+    columns = np.linspace(0, 1, WIDTH)
+    rows = np.linspace(0, 1, shape[0])[:, None]
+    hue = (0.48 + 0.39*np.sin(tau*(columns-rows*0.37+0.1)))[..., None]
+    hot = np.array([0.98, 0.20, 0.68])*hue + np.array([0.34, 0.43, 1.0])*(1-hue)
+    light = (far[..., None]*[0.64, 0.14, 0.53] +
+             veil[..., None]*[0.47, 0.13, 0.50] +
+             plasma[..., None]*hot +
+             filaments[..., None]*[0.72, 0.38, 0.96] +
+             clusters[..., None]*[0.36, 0.81, 1.0] +
+             motes[..., None]*[0.74, 0.76, 1.0])
+    # A few warm intersections carry the original copper without outlining the mesh.
+    warm = np.sin(tau*(columns*1.47 + 0.03))**4
+    light += (clusters*warm[None, :]*0.24)[..., None]*[1.0, 0.49, 0.14]
+    core_light = gaussian_filter(route, (2.6, 4.6)) * 5.3
+    return light[margin:margin+HEIGHT], core_light[margin:margin+HEIGHT]
 
 
-class Scene:
-    def __init__(self, height, treatment):
-        import numpy as np
-
-        self.np = np
-        self.height = height
-        self.treatment = treatment
-        shape = (height*SCALE, WIDTH*SCALE)
-        y, x = np.ogrid[:shape[0], :shape[1]]
-        self.x = x / SCALE
-        self.y = y / SCALE
-        fog = np.exp(-((self.x-384)/286)**2 - ((self.y-height*0.46)/(height*0.68))**2)
-        cool = np.exp(-((self.x-245)/185)**2 - ((self.y-height*0.46)/(height*0.43))**2)
-        warm = np.exp(-((self.x-530)/186)**2 - ((self.y-height*0.42)/(height*0.38))**2)
-        self.background = np.array([13., 17., 23.]) + (
-            fog[..., None]*[1.3, 3.5, 6.] +
-            cool[..., None]*[0.0, 5., 8.] +
-            warm[..., None]*[7., 1.8, 0.])
-        self.rgb = self.background.copy()
-        self.depth = np.full(shape, -np.inf, dtype=np.float32)
-        self.signal = np.full(shape, -1, dtype=np.int8)
-        self.visibility = np.zeros(shape, dtype=np.float32)
-
-    def shade(self, x, y, normal_x, normal_y, normal_z, mask, z, branch):
-        np = self.np
-        ix = (y, x)
-        active = mask & (z >= self.depth[ix])
-        if not active.any():
-            return
-        nx, ny, nz = normal_x[active], normal_y[active], normal_z[active]
-        diffuse = np.maximum(0, -0.46*nx - 0.64*ny + 0.61*nz)
-        reflection = np.maximum(0, -0.32*nx - 0.34*ny + 0.885*nz)
-        rim = np.maximum(0, 0.75*nx + 0.25*ny + 0.44*nz)
-        ambient, key, gloss, roughness = self.treatment
-        color = np.array(branch.color)
-        strength = ambient + key*diffuse + 0.22*rim
-        highlight = ((reflection**roughness)*gloss + (reflection**8)*0.13)
-        lit = color * strength[:, None] + highlight[:, None]*[177, 194, 191]
-        mist = min(1, max(0.21, (branch.depth + 23)/26))
-        self.rgb[ix][active] = self.background[ix][active]*(1-mist) + lit*mist
-        self.depth[ix][active] = z[active]
-        self.signal[ix][active] = -1 if branch.signal is None else branch.signal
-        self.visibility[ix][active] = (0.35 + 0.65*nz)
-
-    def sweep(self, branch):
-        """Project the visible surface of a tapered swept sphere into the depth buffer."""
-        np = self.np
-        for (x0, y0), (x1, y1), r0, r1 in zip(
-                branch.points, branch.points[1:], branch.radii, branch.radii[1:]):
-            r = max(r0, r1)
-            ys = slice(max(0, int((min(y0, y1)-r)*SCALE)),
-                       min(self.height*SCALE, int((max(y0, y1)+r)*SCALE)+1))
-            xs = slice(max(0, int((min(x0, x1)-r)*SCALE)),
-                       min(WIDTH*SCALE, int((max(x0, x1)+r)*SCALE)+1))
-            if ys.stop <= ys.start or xs.stop <= xs.start:
-                continue
-            px, py = self.x[:, xs]-x0, self.y[ys, :]-y0
-            dx, dy = x1-x0, y1-y0
-            t = np.clip((px*dx + py*dy) / max(dx*dx+dy*dy, 1e-8), 0, 1)
-            radius = r0 + t*(r1-r0)
-            nx, ny = (px-t*dx)/radius, (py-t*dy)/radius
-            square = nx*nx + ny*ny
-            nz = np.sqrt(np.maximum(0, 1-square))
-            self.shade(xs, ys, nx, ny, nz, square < 1, branch.depth+radius*nz, branch)
-
-    def inlay(self, center, is_footer):
-        """Cut Fibonacci annuli into the substrate and seat the spiral between them."""
-        np = self.np
-        cx, cy = center
-        x, y = self.x-cx, (self.y-cy) / 0.618
-        radius, angle = np.hypot(x, y), np.arctan2(y, x)
-        key = (np.cos(angle+2.35)*0.5+0.5)**2
-        edge_tint = np.where((x < 0)[..., None], [13, 48, 54], [59, 35, 16])
-        for ring in RING_RADII:
-            width = 1.35 if ring < 144 else 1.9
-            lip = np.exp(-((radius-ring)/width)**2)
-            cut = np.exp(-((radius-ring+2.9)/(width*1.23))**2)
-            self.rgb += lip[..., None] * (0.33+0.62*key[..., None]) * edge_tint
-            self.rgb -= cut[..., None] * np.array([4.0, 7.0, 9.0])
-        if not is_footer:
-            for rotation, tint in ((0.42, (102, 68, 37)), (pi+0.42, (28, 81, 90))):
-                spiral = fibonacci_spiral(center, rotation)
-                # Set these below the branches so their occlusion reads as depth.
-                self.sweep(Branch(spiral, taper(spiral, 1.05, 1.65), tint, -8))
-
-    def stitch_bridge(self, center):
-        """The confluence seats a tapered needle and three stitches between the rails."""
-        x, y = center
-        for step, span in zip((13, 34, 55), (89, 89, 55)):
-            start = (x-span/2, y+step+8)
-            finish = (x+span/2, y+step-8)
-            cord = sample_curve(start, ((x-21, y+step+21, x+21, y+step-21, *finish),))
-            self.sweep(Branch(cord, taper(cord, 1.65, 0.65), (115, 77, 52), 18))
-        needle = sample_curve((x-34, y+55), ((x-13, y+51, x+21, y+34, x+55, y+21),))
-        self.sweep(Branch(needle, taper(needle, 3, 0.3), (172, 135, 83), 20))
-
-    def centerpiece(self, center, scale):
-        np = self.np
-        cx, cy = center
-        # A concentric machined surround casts a soft contact shadow over the
-        # fibers. Its recessed glass face reflects the two nearby materials.
-        x, y = (self.x-cx)/scale, (self.y-cy)/scale
-        radius = np.hypot(x, y)
-        angle = np.arctan2(y, x)
-        shade = 1 - 0.68*np.exp(-(np.maximum(radius-38, 0)/8)**2)
-        self.rgb *= shade[..., None]
-        inside = radius < 46
-        face = np.clip(0.55 - 0.007*(x+y), 0, 1)
-        reflected = (np.cos(angle+2.25)*0.5+0.5)**2
-        metal = np.array([28., 35., 41.]) + reflected[..., None]*[85, 94, 101]
-        ribbon = (radius > 41.7) & (radius < 44.2)
-        metal += np.where((x < 0), 1., 0.)[..., None]*reflected[..., None]*[0, 20, 23]
-        metal += np.where((x > 0), 1., 0.)[..., None]*(1-reflected[..., None])*[76, 34, 8]
-        metal[ribbon] *= 1.38
-        glass = np.array([8., 16., 23.]) + face[..., None]*[15, 22, 29]
-        glass += np.exp(-((x+y+24)/13)**2)[..., None]*[13, 24, 31]
-        stack = np.where((radius < 38.7)[..., None], glass, metal)
-        stack[(radius >= 38.7) & (radius < 40.8)] *= 0.32
-        self.rgb[inside] = stack[inside]
-        self.depth[inside] = 45
-        self.signal[inside] = -1
-        self.visibility[inside] = 0
-        # The two recessed glass bulbs have a transmitted light gradient and
-        # a layer of amber material gathering in the lower chamber.
-        bulb_width = 2.2 + 13.3*np.sin(np.minimum(np.abs(y)/19, 1.0)*pi/2)**1.42
-        bulb = (np.abs(y) < 19) & (np.abs(x) <= bulb_width)
-        light_through_glass = np.sqrt(np.maximum(0, 1 - (x/bulb_width)**2))
-        upper = np.where(y < 0, 1., 0.)
-        glass_tint = upper[..., None]*[5, 40, 49] + (1-upper[..., None])*[32, 18, 8]
-        contents = (y > 17.5 - 8.5*np.exp(-(x/8)**2)) & bulb & (y > 0)
-        self.rgb[bulb] += (light_through_glass[..., None]*glass_tint)[bulb]
-        self.rgb[contents] += np.array([68, 36, 13])
-        grain = (y > 0) & (y < 15) & (np.abs(x) < 0.55)
-        self.rgb[grain] += np.array([94, 53, 18])
-        # Curved glass sides and a narrow waist share the chamber silhouette.
-        for sign, color in ((-1, TEAL), (1, AMBER)):
-            near = (cx, cy)
-            left = (cx-15.5*scale, cy+sign*19*scale)
-            right = (cx+15.5*scale, cy+sign*19*scale)
-            for point, turn in ((left, -1), (right, 1)):
-                route = sample_curve(near, ((cx+turn*2*scale, cy+sign*7*scale,
-                                             point[0], cy+sign*9*scale, *point),))
-                self.sweep(Branch(route, (1.75*scale,)*len(route), color, 46))
-            rail = tuple((left[0]+i*(right[0]-left[0])/24, left[1]) for i in range(25))
-            self.sweep(Branch(rail, (2.15*scale,)*len(rail), color, 46))
-
-    def frame(self, phase=None):
-        from PIL import Image
-
-        np = self.np
-        light = np.zeros(self.depth.shape, dtype=np.float32)
-        if phase is not None and self.height == PULSE_HEIGHT:
-            x, y = self.x-WIDTH/2, self.y-self.height/2
-            radius = np.hypot(x, y/0.618)
-            breathing = (1 + cos(tau*phase))/2
-            bezel_light = (1 + cos(tau*(phase-1/13)))/2
-            rings = np.exp(-((radius-55)/1.65)**2) * bezel_light * (self.depth < 0)
-            core = np.exp(-((x/21)**2 + (y/13)**2))
-            boost = rings*0.27 + core*1.36*breathing
-        elif phase is not None:
-            offset = 0 if self.height == OPENING_HEIGHT else FIBONACCI[-2]
-            for index in range(4):
-                positions = self.signal == index
-                head = phase*WAVE_PERIOD - index*FIBONACCI[4]
-                distance = (head-self.y-offset+WAVE_PERIOD/2) % WAVE_PERIOD-WAVE_PERIOD/2
-                falloff = np.exp(-(distance/WAVE_WIDTH)**2)
-                light[positions] = np.broadcast_to(falloff, light.shape)[positions]
-            boost = light * self.visibility
-        else:
-            boost = light
-        rgb = np.clip(self.rgb + boost[..., None]*[63, 78, 75], 0, 255).astype(np.uint8)
-        return Image.fromarray(rgb).resize((WIDTH, self.height), Image.Resampling.LANCZOS)
-
-
-# Ambient strength, key strength, reflection strength and lobe exponent.
-BRUSHED_ALLOY = (0.22, 0.89, 0.72, 19)
-
-
-def build_scene(height, geometry, opening, treatment):
-    scene = Scene(height, treatment)
-    footer = height == PULSE_HEIGHT
-    center = WIDTH/2, height/2
-    scene.inlay(center, footer)
-    for branch in dendrites(geometry, height, opening or footer):
-        if footer:
-            branch = Branch(branch.points, branch.radii,
-                            tuple(round(channel*0.73) for channel in branch.color),
-                            branch.depth, branch.signal)
-        scene.sweep(branch)
-    if opening:
-        scene.stitch_bridge(center)
-    scene.centerpiece(center, 1 if opening or footer else 0.73)
-    return scene
-
-
-def render(output, name, height, geometry, opening):
+def panel_image(light, route, name, offset, phase=None):
+    import numpy as np
     from PIL import Image
 
-    scene = build_scene(height, geometry, opening, BRUSHED_ALLOY)
-    still = scene.frame()
-    still.save(output / f"{name}.png", optimize=True)
-    frames = [scene.frame(index/FRAMES) for index in range(FRAMES)]
+    height = len(light)
+    y, x = np.ogrid[:height, :WIDTH]
+    # Ease each slice back into the README's negative space at the text seam.
+    edge = np.minimum(1, np.minimum(y, height-1-y)/21)
+    route_x, route_y = zip(*FLOW)
+    handoff = np.interp(y+offset, route_y, route_x)
+    edge_glow = np.exp(-((x-handoff)/34)**2)
+    fade = edge**0.72
+    border = fade + (1-fade)*(0.13 + 0.49*edge_glow)
+    border *= 0.68 + 0.32*np.minimum(1, np.minimum(x, WIDTH-1-x)/34)
+    base = 1-np.exp(-light)
+    boost = 0
+    if name == "stitch-pulse":
+        diffuse = np.exp(-(((x-FOOTER_CENTER[0])/21)**2 +
+                           ((y+offset-FOOTER_CENTER[1])/13)**2))
+        inner = np.exp(-(((x-FOOTER_CENTER[0]-8)/21)**2 +
+                         ((y+offset-FOOTER_CENTER[1]+6)/13)**2))
+        base *= 1 - 0.49*diffuse[..., None]
+        if phase is not None:
+            pulse = (1+cos(tau*phase))*0.5
+            boost = (diffuse*pulse*0.69 + inner*(1+cos(tau*(phase-1/13)))*0.09)[..., None]
+    elif phase is not None:
+        period = FIBONACCI[-1]
+        travel = (phase*period - offset-y + period/2) % period-period/2
+        pulse = np.exp(-(travel/6.5)**2)
+        boost = (np.minimum(1, route)*pulse*0.92)[..., None]
+    illumination = np.clip(base + boost*np.array([0.50, 0.76, 0.86]), 0, 1)
+    # Use a single fixed image exposure and a screen-like highlight rolloff.
+    rgb = np.asarray(BACKGROUND) + 224*illumination*border[..., None]
+    image = Image.fromarray(np.rint(rgb).clip(0, 255).astype(np.uint8))
+    return image.resize((DELIVERY_WIDTH, round(height*DELIVERY_WIDTH/WIDTH)),
+                        Image.Resampling.LANCZOS)
 
-    # A single palette keeps the still background byte-stable between frames.
-    # Let the encoder delta-compress just the traveling light. Lanczos provides
-    # stable silhouettes before quantization.
-    contact = Image.new("RGB", (WIDTH, height*5))
-    for index, frame in enumerate((still, frames[0], frames[5], frames[10], frames[15])):
-        contact.paste(frame, (0, index*height))
-    palette = contact.quantize(colors=96, method=Image.Quantize.MEDIANCUT)
-    encoded = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
-    encoded[0].save(output / f"{name}.gif", save_all=True, append_images=encoded[1:],
-                    duration=FRAME_MS, loop=0, disposal=1, optimize=True)
+
+def render(output):
+    from PIL import Image
+
+    field, route = render_field()
+    offset = 0
+    for name, height in PANELS:
+        panel = field[offset:offset+height]
+        signal = route[offset:offset+height]
+        still = panel_image(panel, signal, name, offset)
+        still.save(output / f"{name}.png", optimize=True)
+        frames = [panel_image(panel, signal, name, offset, frame/FRAMES)
+                  for frame in range(FRAMES)]
+        # One palette keeps the stationary particles identical between frames.
+        sample = Image.new("RGB", (still.width, still.height*5))
+        for index, frame in enumerate((still, frames[0], frames[5], frames[10], frames[15])):
+            sample.paste(frame, (0, index*still.height))
+        palette = sample.quantize(colors=76, method=Image.Quantize.MEDIANCUT)
+        encoded = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in frames]
+        encoded[0].save(output / f"{name}.gif", save_all=True, append_images=encoded[1:],
+                        duration=FRAME_MS, loop=0, disposal=1, optimize=True)
+        offset += height
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ASSETS)
     args = parser.parse_args()
-    verify_thread_direction(OPENING, CONTINUATION)
     args.output.mkdir(parents=True, exist_ok=True)
-    for name, height, geometry, opening in (
-        ("stitch-descent", OPENING_HEIGHT, OPENING, True),
-        ("stitch-resume", CONTINUATION_HEIGHT, CONTINUATION, False),
-        ("stitch-pulse", PULSE_HEIGHT, PULSE, False),
-    ):
-        render(args.output, name, height, geometry, opening)
+    render(args.output)
 
 
 if __name__ == "__main__":
