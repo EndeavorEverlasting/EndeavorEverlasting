@@ -4,6 +4,7 @@ import argparse
 from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
+import json
 from pathlib import Path
 import re
 from struct import unpack
@@ -27,6 +28,10 @@ REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input",
              "link", "meta", "param", "source", "track", "wbr"}
 MAX_GIF_BYTES = 250_000
+ARTWORK_REVIEW = "assets/profile-artwork-review.json"
+RENDERER = "scripts/render_profile_motion.py"
+ARTWORK_CRITERIA = ("tapered_branches", "depth_and_material", "vertical_continuity",
+                    "phone_legibility", "no_sketch_edges")
 
 
 class ProfileCheckError(ValueError):
@@ -222,6 +227,22 @@ def check_artwork(asset_bytes):
               f"{len(animation)} bytes, no loop", flush=True)
 
 
+def check_review(review, release_bytes):
+    """Keep visual inspection tied to the exact renderer and delivered pixels."""
+    require(isinstance(review, dict) and review.get("version") == 1,
+            "Use the visual review record described in assets/profile-artwork.md.")
+    notes = review.get("observations")
+    require(isinstance(notes, dict) and set(notes) == set(ARTWORK_CRITERIA) and
+            all(isinstance(note, str) and note.strip() for note in notes.values()),
+            "Record all five visual observations in " + ARTWORK_REVIEW + ".")
+    digests = review.get("sha256")
+    require(isinstance(digests, dict) and set(digests) == set(release_bytes),
+            "The visual review must cover both GIFs, both stills and the renderer.")
+    for path, content in release_bytes.items():
+        require(digests[path] == sha256(content).hexdigest(),
+                f"{path} differs from the reviewed version. See assets/profile-artwork.md.")
+
+
 def verify_public(expected_images, asset_bytes):
     actual = checked_images(read_url(PROFILE).decode("utf-8"), live=True)
     for path, (src, alt) in actual.items():
@@ -239,6 +260,8 @@ def main():
         expected = checked_images((root / "README.md").read_text(encoding="utf-8"))
         asset_bytes = {path: (root / path).read_bytes() for path in ASSETS}
         check_artwork(asset_bytes)
+        review = json.loads((root / ARTWORK_REVIEW).read_text(encoding="utf-8"))
+        check_review(review, {**asset_bytes, RENDERER: (root / RENDERER).read_bytes()})
         if args.live:
             for attempt in range(3):
                 try:
