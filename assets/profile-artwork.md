@@ -59,3 +59,53 @@ Requiring that check before merge is a separate branch-protection setting.
 
 After an authorized merge, run `python scripts/verify_profile_visuals.py --live`
 and inspect the four images on the public GitHub profile.
+
+## Browse and restore profile versions
+
+The [profile release archive](profile-releases/) holds seven initial snapshots.
+Each folder renders the README and artwork as they appeared in that version.
+The catalog records the original commit and checksums for its archived files.
+
+| Version | Expression |
+| --- | --- |
+| [v01](profile-releases/v01/) | Fibonacci workflow banner |
+| [v02](profile-releases/v02/) | First Stitch |
+| [v03](profile-releases/v03/) | Motion woven through the introduction |
+| [v04](profile-releases/v04/) | Top-down threads |
+| [v05](profile-releases/v05/) | Layered dendritic artwork |
+| [v06](profile-releases/v06/) | Looping Fibonacci panels |
+| [v07](profile-releases/v07/) | Continuous cosmic web |
+
+Create a branch from current main. The first restore command prints a patch.
+The second applies it to your checkout. It changes the media blocks and the
+active version in the catalog while preserving the current README prose.
+GitHub account settings, including the avatar and bio, live outside this archive.
+
+```sh
+git switch -c profile/restore-v06
+python scripts/profile_release.py list
+python scripts/profile_release.py restore v06
+python scripts/profile_release.py restore v06 --apply
+python scripts/verify_profile_visuals.py
+git diff
+```
+
+Commit the two-file patch and merge through the normal PR workflow after the
+checks are green. To return to the cosmic web, repeat the steps with `v07`.
+If a rollback needs a text break whose anchor was edited out, restore the
+supported section anchor in a separate editorial change. Saved working edits to
+the README or catalog must be committed or stashed before applying rollback.
+
+For a new design, produce and review the working artwork and README, then
+capture them before the PR is merged. The command provides the next available
+ID if you choose an existing or out-of-sequence one. Include the archive folder,
+catalog and approved artwork in the PR.
+
+```sh
+python scripts/profile_release.py capture v08 --title "Your new expression"
+python scripts/profile_release.py check
+```
+
+CI verifies the selected expression, the bytes of every archived file and
+immutability against the PR base. Keep archived releases intact and capture
+a new release for subsequent changes.
