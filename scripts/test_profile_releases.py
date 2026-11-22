@@ -1,4 +1,5 @@
 """Exercise the real snapshot and rollback commands in an isolated Git checkout."""
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -8,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from profile_release import ARCHIVES, CATALOG, REPO, catalog, current_version, encode
-from profile_release import git, read_archive, archive_layout
+from profile_release import git, read_archive, archive_layout, next_release_id, verify_live_checkout, ReleaseError
 from verify_profile_scope import FOOTER_INVITATION, REPOSITORIES_URL, readme_copy
 from verify_profile_visuals import PROFILE, ProfileCheckError, verify_archived_public
 
@@ -117,6 +118,10 @@ class ProfileReleaseTests(unittest.TestCase):
                          source.read_bytes())
         self.assertIn("next version ID", self.command("capture", next_version, "--title", "Overwrite").stderr)
 
+        served = json.loads(self.command("status", "--compare", next_version, "--json").stdout)["comparison"]
+        self.assertEqual(served["changed_scenes"], {})
+        self.assertEqual(served["media_url_scenes"], ["top", "after_intro", "bottom"])
+
         self.commit("Capture the reviewed working art")
         applied = self.command("restore", next_version, "--apply")
         self.assertEqual(applied.returncode, 0, applied.stderr)
@@ -124,6 +129,93 @@ class ProfileReleaseTests(unittest.TestCase):
         self.assertIn(f"{ARCHIVES}/{next_version}/assets/", (self.root / "README.md").read_text())
         (self.root / "assets/stitch-pulse.gif").write_bytes(b"unreviewed")
         self.assertIn("Capture the changed artwork", self.command("check", "--base", base).stderr)
+
+    def test_status_tracks_copy_scene_changes_and_default_artwork_independently(self):
+        registry = catalog(self.root)
+        version = registry["active"]["id"]
+        base = git(self.root, "rev-parse", "HEAD").decode().strip()
+        git(self.root, "remote", "add", "origin", f"{REPO}.git")
+        git(self.root, "update-ref", "refs/remotes/origin/main", base)
+        git(self.root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        readme = self.root / "README.md"
+        readme.write_text(readme.read_text().replace("New editorial sentence.", "New editorial revision."))
+        copy = self.commit("Edit only the invitation context")
+        report = json.loads(self.command("status", "--compare", "v02", "--json").stdout)
+        self.assertEqual(report["artwork"]["registered_commit"], base)
+        self.assertEqual(report["next_artwork_version"], next_release_id(registry["versions"]))
+        self.assertEqual(report["editorial"]["last_commit"], copy)
+        self.assertEqual(report["last_fetched_default"]["commit"], base)
+        self.assertEqual(report["last_fetched_default"]["artwork"]["id"], version)
+        self.assertIn(f"/tree/{base}/", report["artwork"]["archive_url"])
+        git(self.root, "remote", "set-url", "origin", "https://github.com/example/profile-fork.git")
+        fork = json.loads(self.command("status", "--json").stdout)
+        self.assertFalse(fork["last_fetched_default"]["canonical_origin"])
+        self.assertIsNone(fork["artwork"]["archive_url"])
+        self.assertEqual(report["comparison"]["changed_scenes"]["bottom"]["removed"],
+                         ["assets/stitch-pulse.gif", "assets/stitch-pulse.png"])
+        self.assertIn("restore v02", report["comparison"]["preview_command"])
+        self.assertIsNone(report["comparison"]["restore_blocker"])
+        self.assertEqual(git(self.root, "status", "--porcelain"), b"")
+
+        self.assertEqual(self.command("restore", "v02", "--apply").returncode, 0)
+        pending = json.loads(self.command("status", "--json").stdout)
+        self.assertTrue(pending["checkout"]["profile_changes_pending"])
+        self.assertEqual(pending["artwork"]["id"], "v02")
+        self.assertEqual(pending["last_fetched_default"]["artwork"]["id"], version)
+        self.commit("Restore artwork only")
+        restored = json.loads(self.command("status", "--json").stdout)
+        self.assertFalse(restored["history"][-1]["editorial_changed"])
+        self.assertTrue(restored["history"][-1]["artwork_selection_changed"])
+        self.assertEqual(restored["editorial"]["last_commit"], copy)
+
+        readme.write_text(readme.read_text().replace("I care about what happens", "How I think about what happens"))
+        blocked = json.loads(self.command("status", "--compare", version, "--json").stdout)
+        self.assertIn("Restore needs exactly one section", blocked["comparison"]["restore_blocker"])
+
+    def test_shallow_status_does_not_invent_registration_or_editorial_provenance(self):
+        with TemporaryDirectory() as directory:
+            shallow = Path(directory)
+            git(self.root, "clone", "--depth", "1", self.root.as_uri(), str(shallow))
+            result = subprocess.run([sys.executable, "scripts/profile_release.py", "status", "--json"],
+                                    cwd=shallow, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertTrue(report["history_is_shallow"])
+            self.assertIsNone(report["artwork"]["registered_commit"])
+            self.assertIsNone(report["editorial"]["last_commit"])
+            self.assertEqual(report["history"], [])
+
+    def test_live_status_rejects_pending_or_stale_checkout_before_render(self):
+        with patch("profile_release.subprocess.run") as dispatch:
+            with self.assertRaisesRegex(ReleaseError, "clean profile checkout"):
+                verify_live_checkout(self.root, "a"*40, pending=True)
+            dispatch.assert_not_called()
+            dispatch.return_value = subprocess.CompletedProcess([], 0, "b"*40 + "\tHEAD\n", "")
+            with self.assertRaisesRegex(ReleaseError, "current default HEAD"):
+                verify_live_checkout(self.root, "a"*40, pending=False)
+            self.assertEqual(dispatch.call_count, 1)
+            dispatch.side_effect = [subprocess.CompletedProcess([], 0, f"{'a'*40}\tHEAD\n", ""),
+                                    subprocess.CompletedProcess([], 0, "", ""),
+                                    subprocess.CompletedProcess([], 0, f"{'b'*40}\tHEAD\n", "")]
+            with self.assertRaisesRegex(ReleaseError, "changed during verification"):
+                verify_live_checkout(self.root, "a"*40, pending=False)
+
+        (self.root / "scripts/verify_profile_visuals.py").write_text(f"PROFILE = {PROFILE!r}\n")
+        result = self.command("status", "--live")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("clean profile checkout", result.stderr)
+
+    def test_published_catalog_rejects_skipping_the_next_version_id(self):
+        base = git(self.root, "rev-parse", "HEAD").decode().strip()
+        data = catalog(self.root)
+        current = data["active"]["id"]
+        next_id = next_release_id(data["versions"])
+        skipped = f"v{int(next_id[1:]) + 1:02d}"
+        shutil.copytree(self.root / ARCHIVES / current, self.root / ARCHIVES / skipped)
+        data["versions"][skipped] = data["versions"][current]
+        data["active"] = {"id": skipped, "archive": True}
+        (self.root / CATALOG).write_bytes(encode(data))
+        self.assertIn(f"Use the next version ID: {next_id}", self.command("check", "--base", base).stderr)
 
     def test_published_catalog_is_append_only(self):
         base = git(self.root, "rev-parse", "HEAD").decode().strip()

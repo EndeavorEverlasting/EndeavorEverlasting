@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""List, verify, capture and restore profile expression snapshots."""
+"""Inspect, verify, capture and restore profile expression snapshots."""
 import argparse
 from difflib import unified_diff
 from hashlib import sha256
@@ -8,9 +8,13 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 from tempfile import NamedTemporaryFile
 
-from verify_profile_scope import FOOTER_INVITATION, MEDIA_FILENAME, PROFILE_MEDIA, RELEASE_ID
+if __name__ == "__main__":
+    sys.dont_write_bytecode = True
+
+from verify_profile_scope import FOOTER_INVITATION, MEDIA_FILENAME, PROFILE_MEDIA, RELEASE_ID, readme_copy
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = "assets/profile-releases.json"
@@ -21,6 +25,9 @@ REF = re.compile(r"[0-9a-f]{40}")
 DIGEST = re.compile(r"[0-9a-f]{64}")
 MEDIA_ATTR = re.compile(r'\b(?:src|srcset)="([^"]+)"')
 SLOTS = ("top", "after_intro", "before_work", "bottom")
+VERIFICATION_SCRIPTS = ("scripts/profile_release.py", "scripts/verify_profile_scope.py",
+                        "scripts/verify_profile_visuals.py")
+CLEAN_LIVE_CHECKOUT = "Live status needs a clean profile checkout. Run status for local state."
 
 
 class ReleaseError(ValueError):
@@ -132,6 +139,11 @@ def verify_inventory(root, versions):
     require(observed == expected, "Archive inventory differs from the release catalog.")
 
 
+
+def next_release_id(versions):
+    return f"v{max(int(name[1:]) for name in versions) + 1:02d}"
+
+
 def current_version(root, base=None):
     data = catalog(root)
     verify_inventory(root, data["versions"])
@@ -149,6 +161,9 @@ def current_version(root, base=None):
             additions = set(data["versions"]) - set(original)
             require(not additions or additions == {selected["id"]},
                     "Publish one newly captured working expression at a time.")
+            if additions:
+                expected_id = next_release_id(original)
+                require(additions == {expected_id}, f"Use the next version ID: {expected_id}.")
             if selected["archive"] and not additions and selected != baseline["active"]:
                 paths = set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "--")
                             .decode("utf-8").split("\0")) - {""}
@@ -192,7 +207,6 @@ def insert_layout(current, blocks):
             require(len(candidates) == 1, f"Restore needs exactly one section beginning with {anchor!r}.")
             start = candidates[0].start()
         plain = plain[:start] + rendered + plain[start:]
-    from verify_profile_scope import readme_copy
     require(readme_copy(current) == readme_copy(plain), "Restore changed profile prose.")
     require(layout(plain) == blocks, "Could not place the selected version.")
     return plain
@@ -246,7 +260,7 @@ def capture(root, name, title):
     from verify_profile_visuals import check_artwork, check_motion_pixels, check_review
 
     data = catalog(root)
-    next_name = f"v{max(int(key[1:]) for key in data['versions']) + 1:02d}"
+    next_name = next_release_id(data["versions"])
     require(name == next_name, f"Use the next version ID: {next_name}.")
     verify_inventory(root, data["versions"])
     for existing, entry in data["versions"].items():
@@ -278,10 +292,225 @@ def capture(root, name, title):
     return f"Captured and selected {name}. Commit the catalog, snapshot and approved artwork together."
 
 
+def committed_catalog(root, commit):
+    paths = git(root, "ls-tree", "--name-only", commit, "--", CATALOG).decode("utf-8").splitlines()
+    return json.loads(git(root, "show", f"{commit}:{CATALOG}")) if CATALOG in paths else None
+
+
+def profile_history(root):
+    """Classify first-parent events since the immutable catalog was introduced."""
+    commits = git(root, "log", "--first-parent", "--reverse", "--format=%H%x09%s",
+                  "--", "README.md", CATALOG).decode("utf-8").splitlines()
+    shallow = git(root, "rev-parse", "--is-shallow-repository").strip() == b"true"
+    events = []
+    previous_prose = previous_selection = editorial = baseline = None
+    known_versions = set()
+    registrations = {}
+    for index, row in enumerate(commits):
+        commit, subject = row.split("\t", 1)
+        registry = committed_catalog(root, commit)
+        if registry is None:
+            continue
+        prose = readme_copy(git(root, "show", f"{commit}:README.md").decode("utf-8"))
+        selection = registry["active"]
+        versions = set(registry["versions"])
+        additions = versions - known_versions
+        copy_changed = previous_prose is not None and prose != previous_prose
+        selection_changed = selection != previous_selection
+        previous_prose, previous_selection, known_versions = prose, selection, versions
+        if shallow and index == 0:
+            continue
+        if baseline is None:
+            baseline = commit
+        if copy_changed:
+            editorial = commit
+        registrations.update(dict.fromkeys(additions, commit))
+        if additions or copy_changed or selection_changed:
+            events.append({"commit": commit, "subject": subject, "active": selection,
+                           "registered": sorted(additions, key=lambda name: int(name[1:])),
+                           "artwork_selection_changed": selection_changed, "editorial_changed": copy_changed})
+    return events, editorial, baseline, registrations, shallow
+
+
+def scene_files(blocks, files):
+    return {slot: {path: sha256(files[path]).hexdigest()
+                   for block in blocks[slot] for path in MEDIA_ATTR.findall(block)}
+            for slot in SLOTS}
+
+
+def compare_artwork(root, data, current, target, readme, checkout_layout):
+    require(target in data["versions"], f"Unknown release {target!r}. Run the list command.")
+    current_blocks, current_files = read_archive(root, current, data["versions"][current])
+    target_blocks, target_files = read_archive(root, target, data["versions"][target])
+    before, after = scene_files(current_blocks, current_files), scene_files(target_blocks, target_files)
+    scenes = {}
+    for slot in SLOTS:
+        original, replacement = before[slot], after[slot]
+        placement_changed = current_blocks[slot] != target_blocks[slot]
+        if original != replacement or placement_changed:
+            scenes[slot] = {
+                "added": sorted(replacement.keys() - original.keys()),
+                "removed": sorted(original.keys() - replacement.keys()),
+                "changed": sorted(path for path in original.keys() & replacement.keys()
+                                  if original[path] != replacement[path]),
+                "markup_changed": placement_changed,
+            }
+    target_layout = archive_layout(target_blocks, target)
+    url_changes = [slot for slot in SLOTS
+                   if MEDIA_ATTR.findall("\n".join(checkout_layout[slot])) !=
+                      MEDIA_ATTR.findall("\n".join(target_layout[slot]))]
+    blocker = None
+    try:
+        insert_layout(readme, target_layout)
+    except ValueError as error:
+        blocker = str(error)
+    return {"from": current, "to": target, "changed_scenes": scenes,
+            "media_url_scenes": url_changes, "restore_blocker": blocker,
+            "preview_command": f"python scripts/profile_release.py restore {target}"}
+
+
+def github_default_head(root):
+    provider = subprocess.run(["git", "ls-remote", "--symref", f"{REPO}.git", "HEAD"],
+                              cwd=root, capture_output=True, text=True, timeout=20)
+    require(provider.returncode == 0, f"Cannot read GitHub default HEAD: {provider.stderr.strip()}")
+    return next((line.split()[0] for line in provider.stdout.splitlines()
+                 if re.fullmatch(r"[0-9a-f]{40}\tHEAD", line)), None)
+
+
+def verify_live_checkout(root, head, pending):
+    require(not pending, CLEAN_LIVE_CHECKOUT)
+    from verify_profile_visuals import PROFILE
+
+    require(github_default_head(root) == head,
+            "Checkout does not match GitHub's current default HEAD. Fetch and check out that commit.")
+    check = subprocess.run([sys.executable, "-B", str(root / "scripts/verify_profile_visuals.py"), "--live"],
+                           cwd=root, capture_output=True, text=True, timeout=90)
+    require(check.returncode == 0, (check.stderr or check.stdout).strip())
+    require(github_default_head(root) == head, "GitHub default HEAD changed during verification. Fetch and retry.")
+    return {"url": PROFILE, "default_commit": head, "artwork_and_invitation_verified": True}
+
+
+def canonical_origin(root):
+    """Use only a recognized GitHub origin when linking fetched archive bytes."""
+    urls = {line.split()[1].lower().removesuffix(".git")
+            for line in git(root, "remote", "-v").decode("utf-8").splitlines()
+            if line.startswith("origin\t") and line.endswith("(fetch)")}
+    slug = REPO.removeprefix("https://github.com/").lower()
+    return bool(urls) and urls <= {REPO.lower(), f"git@github.com:{slug}",
+                                  f"ssh://git@github.com/{slug}"}
+
+
+def profile_status(root, *, compare=None, live=False):
+    """Report checkout artwork and copy, with optional comparison or live proof."""
+    scripts_pending = bool(git(root, "status", "--porcelain", "--", *VERIFICATION_SCRIPTS))
+    if live:
+        require(not scripts_pending, CLEAN_LIVE_CHECKOUT)
+    selected, checkout_layout, _ = current_version(root)
+    data = catalog(root)
+    events, editorial, baseline, registrations, shallow = profile_history(root)
+    head = git(root, "rev-parse", "HEAD").decode("utf-8").strip()
+    branch = git(root, "branch", "--show-current").decode("utf-8").strip()
+    tracking = git(root, "for-each-ref", "--format=%(symref)", "refs/remotes/origin/HEAD").decode("utf-8").strip()
+    tracked_head = git(root, "rev-parse", tracking).decode("utf-8").strip() if tracking else None
+    pending = scripts_pending or bool(git(
+        root, "status", "--porcelain", "--", "README.md", CATALOG, ARCHIVES,
+        *[path for path in data["versions"][selected["id"]]["files"] if path != "README.md"]))
+    remote = committed_catalog(root, tracked_head) if tracked_head else None
+    canonical = canonical_origin(root)
+    registered_remote = remote["versions"] if remote and canonical else {}
+    versions = {}
+    for name, entry in data["versions"].items():
+        path = archive_prefix(name)
+        published_path = f"{REPO}/tree/{tracked_head}/{path}" if registered_remote.get(name) == entry else None
+        versions[name] = {"title": entry["title"], "original_commit": entry["source_commit"],
+                          "registered_commit": registrations.get(name),
+                          "archive_path": path, "archive_url": published_path}
+    blocks, files = read_archive(root, selected["id"], data["versions"][selected["id"]])
+    readme = read_blob(root, "README.md").decode("utf-8")
+    result = {
+        "schema": 1,
+        "checkout": {"commit": head, "branch": branch or None, "profile_changes_pending": pending},
+        "last_fetched_default": {"ref": tracking or None, "commit": tracked_head,
+                                 "artwork": remote["active"] if remote else None, "canonical_origin": canonical},
+        "artwork": {**selected, **versions[selected["id"]], "scenes": scene_files(blocks, files)},
+        "editorial": {"last_commit": editorial, "registry_baseline": baseline,
+                      "invitation_present": bool(FOOTER_INVITATION.search(readme))},
+        "versions": versions, "next_artwork_version": next_release_id(versions),
+        "history": events, "history_is_shallow": shallow,
+    }
+    if compare:
+        result["comparison"] = compare_artwork(root, data, selected["id"], compare, readme, checkout_layout)
+    if live:
+        result["live"] = verify_live_checkout(root, head, pending)
+    return result
+
+
+def format_status(data, history):
+    artwork, checkout, editorial = (data[key] for key in ("artwork", "checkout", "editorial"))
+    dirty = " (pending profile edits)" if checkout["profile_changes_pending"] else ""
+    origin = data["last_fetched_default"]
+    copy_revision = editorial["last_commit"] or (
+        f"{editorial['registry_baseline']} (registry baseline)" if editorial["registry_baseline"] else "unknown")
+    remote_art = f" (artwork {origin['artwork']['id']})" if origin["artwork"] else ""
+    lines = [
+        f"Checkout {checkout['branch'] or 'detached HEAD'} at {checkout['commit']}{dirty}",
+        (f"Last fetched origin default {origin['ref'] or 'unknown'} {origin['commit'] or ''}" + remote_art).rstrip(),
+        f"Artwork {artwork['id']} — {artwork['title']} ({'archive URLs' if artwork['archive'] else 'working URLs'})",
+        f"Original artwork commit {artwork['original_commit'] or 'unknown'}",
+        f"Archive registered in {artwork['registered_commit'] or 'unknown'} | "
+        f"{artwork['archive_url'] or artwork['archive_path']}",
+        f"Editorial revision {copy_revision} | "
+        f"repository invitation {'present' if editorial['invitation_present'] else 'absent'}",
+    ]
+    for slot, paths in artwork["scenes"].items():
+        lines.append(f"  {slot}: {', '.join(Path(path).name for path in paths) or 'none'}")
+    lines.append(f"{len(data['versions'])} snapshots | next artwork ID {data['next_artwork_version']}.")
+    lines.append("Run list to browse all versions.")
+    if data["history_is_shallow"]:
+        lines.append("Shallow history. Older provenance may be unavailable.")
+    if "live" in data:
+        lines.append(f"Live artwork and invitation verified against GitHub default HEAD. {data['live']['url']}")
+    if comparison := data.get("comparison"):
+        lines.append(f"Compare {comparison['from']} → {comparison['to']}")
+        for slot, changes in comparison["changed_scenes"].items():
+            parts = [f"{operation} {', '.join(Path(path).name for path in changes[operation])}"
+                     for operation in ("added", "removed", "changed") if changes[operation]]
+            if changes["markup_changed"]:
+                parts.append("scene markup changes")
+            lines.append(f"  {slot}: {' | '.join(parts)}")
+        if not comparison["changed_scenes"]:
+            lines.append("  Artwork bytes and scene markup match.")
+        if comparison["media_url_scenes"]:
+            lines.append("  Media URLs would change in " + ", ".join(comparison["media_url_scenes"]))
+        if comparison["restore_blocker"]:
+            lines.append(f"Restore blocked: {comparison['restore_blocker']}")
+        else:
+            lines.append("Artwork restore preserves current editorial copy.")
+            lines.append(comparison["preview_command"])
+    if history:
+        lines.append("Committed profile history (newest first)")
+        for event in reversed(data["history"]):
+            changes = []
+            if event["registered"]:
+                changes.append("registered " + ", ".join(event["registered"]))
+            if event["artwork_selection_changed"] and event["active"]:
+                selection = event["active"]
+                changes.append(f"selected {selection['id']} ({'archive' if selection['archive'] else 'working'})")
+            if event["editorial_changed"]:
+                changes.append("editorial")
+            lines.append(f"  {event['commit'][:7]} | {', '.join(changes)} | {event['subject']}")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="operation", required=True)
     sub.add_parser("list")
+    status = sub.add_parser("status", help="Show profile state and provenance without changing files.")
+    status.add_argument("--compare", metavar="VERSION", help="Show scene changes from a possible restore.")
+    status.add_argument("--history", action="store_true", help="Show committed profile history.")
+    status.add_argument("--json", action="store_true", help="Emit machine-readable status and history.")
+    status.add_argument("--live", action="store_true", help="Check GitHub default HEAD and rendered artwork/invitation.")
     check = sub.add_parser("check")
     check.add_argument("--base")
     recover = sub.add_parser("restore")
@@ -297,6 +526,9 @@ def main():
             for name, entry in data["versions"].items():
                 state = " (active)" if name == data["active"]["id"] else ""
                 print(f"{name}{state}  {entry['title']}  {REPO}/tree/main/{archive_prefix(name)}")
+        elif args.operation == "status":
+            result = profile_status(ROOT, compare=args.compare, live=args.live)
+            print(encode(result).decode("utf-8").rstrip() if args.json else format_status(result, args.history))
         elif args.operation == "check":
             selected, _, _ = current_version(ROOT, args.base)
             print(f"PASS: verified profile versions and active expression {selected['id']}")
@@ -304,7 +536,7 @@ def main():
             print(restore(ROOT, args.version, args.apply))
         else:
             print(capture(ROOT, args.version, args.title))
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"FAIL: {error}\n")
 
 
