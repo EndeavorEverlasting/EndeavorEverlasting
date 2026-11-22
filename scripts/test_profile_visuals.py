@@ -72,6 +72,8 @@ class ProfileVisualTests(unittest.TestCase):
             self.live.replace(self.pulse, invitation + self.pulse),
             live.replace('<p><strong>Explore', '<p hidden><strong>Explore'),
             live.replace(REPOSITORIES_URL, "https://example.com/projects"),
+            live.replace(f'<a href="{REPOSITORIES_URL}">Browse all repositories</a>',
+                         f'Browse all repositories<a href="{REPOSITORIES_URL}"></a>'),
             live.replace("</article>", "<p>Extra copy</p></article>"),
         ):
             with self.subTest(markup=bad), self.assertRaisesRegex(ProfileCheckError, "invitation"):

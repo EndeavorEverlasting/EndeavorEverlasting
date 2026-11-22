@@ -64,6 +64,7 @@ class ProfileImages(HTMLParser):
         self.pictures = []
         self.body_text = []
         self.links = []
+        self.link_text = None
         self.picture = None
         self.positions = {text: [] for text in MILESTONES}
         self.feed(source)
@@ -94,7 +95,8 @@ class ProfileImages(HTMLParser):
         elif tag == "img":
             self.images.append((self.getpos(), attrs, self.picture))
         elif tag == "a" and attrs.get("href"):
-            self.links.append((self.getpos(), attrs["href"]))
+            self.link_text = []
+            self.links.append((self.getpos(), attrs["href"], self.link_text))
 
     def handle_data(self, data):
         if self.hidden_elements or (self.live and not any(self.articles)):
@@ -102,6 +104,8 @@ class ProfileImages(HTMLParser):
         visible = data.strip()
         if visible:
             self.body_text.append((self.getpos(), visible))
+            if self.link_text is not None:
+                self.link_text.append(visible)
         for text in MILESTONES:
             if visible.startswith(text):
                 self.positions[text].append(self.getpos())
@@ -115,6 +119,8 @@ class ProfileImages(HTMLParser):
             self.hidden_elements.pop()
         elif tag == "picture" and not self.hidden_elements:
             self.picture = None
+        elif tag == "a" and not self.hidden_elements:
+            self.link_text = None
         if tag == "article" and self.articles:
             self.articles.pop()
 
@@ -132,14 +138,16 @@ def asset_url(src, path, live):
 def check_footer_text(page, position, invitation):
     """Match the visible text and destination after the last artwork."""
     trailing_text = " ".join(text for offset, text in page.body_text if offset > position)
-    trailing_links = [urljoin(PROFILE, href) for offset, href in page.links if offset > position]
+    trailing_links = [(urljoin(PROFILE, href), " ".join(label).split())
+                      for offset, href, label in page.links if offset > position]
     if invitation is None:
         require(not trailing_text and not trailing_links,
                 "The pulsing artwork must be the last visible README content.")
         return
     expected = ProfileImages(invitation, False)
     expected_text = " ".join(text for _, text in expected.body_text)
-    require(trailing_text.split() == expected_text.split() and trailing_links == [REPOSITORIES_URL],
+    expected_links = [(REPOSITORIES_URL, " ".join(label).split()) for _, _, label in expected.links]
+    require(trailing_text.split() == expected_text.split() and trailing_links == expected_links,
             "The repository invitation must follow the pulsing artwork and link to the repository list.")
 
 
