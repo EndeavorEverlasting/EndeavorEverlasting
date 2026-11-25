@@ -528,6 +528,194 @@ def format_status(data, history):
     return "\n".join(lines)
 
 
+def validate_revision_geometry(g):
+    import math
+    PHI = (1 + math.sqrt(5)) / 2
+    TOL = 1e-6
+    if not isinstance(g, dict):
+        return ["Missing geometry evidence"]
+    errors = []
+    radii = g.get("quarter_turn_radii", [])
+    if not isinstance(radii, list) or len(radii) < 4 or any(type(r) not in (float, int) or not math.isfinite(r) or r <= 0 for r in radii):
+        errors.append("Need at least four finite positive measured quarter-turn radii")
+    elif any(abs(b/a - 1/PHI) > TOL for a, b in zip(radii, radii[1:])):
+        errors.append("Inward quarter-turn ratio is not 1/phi")
+    def vec(key):
+        v = g.get(key, [])
+        if not isinstance(v, list) or len(v) != 2 or any(type(x) not in (float, int) or not math.isfinite(x) for x in v):
+            raise ValueError(key)
+        return v
+    try:
+        a, b = vec("rim_end"), vec("spiral_start")
+        if math.dist(a, b) > TOL:
+            errors.append("Rim-to-spiral join is disconnected")
+        a, b = vec("rim_end_tangent"), vec("spiral_start_tangent")
+        if min(math.hypot(*a), math.hypot(*b)) <= TOL:
+            errors.append("Join tangents must be nonzero")
+        elif math.dist(a, b) > TOL * max(1, math.hypot(*a), math.hypot(*b)):
+            errors.append("Join derivatives differ: not C1 in declared parameterization")
+    except (ValueError, TypeError):
+        errors.append("Missing or malformed join evidence")
+    return errors
+
+
+def verify_revision(packet_path, *, authority_path, review=False):
+    """Validate a private revision packet; never infer visual approval from a receipt."""
+    from PIL import Image, ImageChops
+
+    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    require(isinstance(packet, dict) and packet.get("schema_version") == 1,
+            "Unsupported profile revision packet.")
+
+    require(authority_path.resolve() != packet_path.resolve(),
+            "Revision authority must be a separate private source.")
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    require(isinstance(authority, dict) and authority.get("schema_version") == 1,
+            "Unsupported revision authority.")
+    # The authority is recovered independently of the candidate from the private
+    # operator-approved source; this checks equality, not the approval itself.
+    fields = ("baseline", "requested_delta", "rejected_variants", "required_outputs",
+              "preservation_mode", "geometry_required", "native_output")
+    require(all(key in authority and key in packet and authority[key] == packet[key]
+                for key in fields), "Revision packet contradicts private authority.")
+    require(type(authority["geometry_required"]) is bool,
+            "Geometry requirement must be explicit.")
+    require(isinstance(packet.get("source"), dict)
+            and packet["source"].get("sha256") == authority.get("source_sha256"),
+            "Source differs from private authority.")
+
+    def asset(record):
+        require(isinstance(record, dict) and isinstance(record.get("path"), str)
+                and isinstance(record.get("sha256"), str) and DIGEST.fullmatch(record["sha256"]),
+                "Every asset needs a path and SHA-256.")
+        path = (packet_path.parent / record["path"]).resolve(strict=True)
+        require(path.is_file() and sha256(path.read_bytes()).hexdigest() == record["sha256"],
+                "Asset is missing or its hash differs.")
+        with Image.open(path) as image:
+            image.verify()
+        with Image.open(path) as image:
+            require(getattr(image, "n_frames", 1) == 1, "Expected a static image.")
+            image.load()
+        return path
+
+    source = asset(packet.get("source"))
+    require(packet.get("source_inspected") is True, "Inspect the actual source first.")
+    baseline, delta, proposed = (packet.get(k) for k in ("baseline", "requested_delta", "proposed"))
+    require(all(isinstance(x, dict) and x for x in (baseline, delta, proposed)),
+            "Provide the complete baseline, explicit delta and resolved proposed attributes.")
+    require(delta.keys() <= baseline.keys() and proposed == baseline | delta,
+            "Requested delta is unmapped, or protected attributes have drifted.")
+    rejected = packet.get("rejected_variants")
+    require(isinstance(rejected, list) and all(isinstance(x, str) and x.strip() for x in rejected),
+            "Record rejected variants or an explicit empty list.")
+    targets = packet.get("required_outputs")
+    require(isinstance(targets, dict) and targets and all(
+        isinstance(k, str) and k and isinstance(v, list) and len(v) == 2
+        and all(type(n) is int and n > 0 for n in v) for k, v in targets.items()),
+        "Declare independent output names and exact dimensions.")
+    mode = packet.get("preservation_mode")
+    require(mode in ("semantic", "pixel_lock"), "Declare the preservation mode explicitly.")
+    if mode == "pixel_lock":
+        require(isinstance(packet.get("approved_mask"), dict)
+                and isinstance(authority.get("mask_sha256"), str)
+                and packet["approved_mask"].get("sha256") == authority["mask_sha256"],
+                "Protected mask is not independently pinned.")
+        require(packet["native_output"] in targets, "Declare the protected native export name.")
+        mask = asset(packet.get("approved_mask"))
+        require(packet.get("mask_approved") is True, "Pixel lock requires an independently approved mask.")
+        with Image.open(source) as original, Image.open(mask) as protected:
+            require(protected.mode == "L" and protected.size == original.size
+                    and protected.getbbox() and not (set(protected.getdata()) - {0, 255}),
+                    "Protected mask must be nonempty binary grayscale in native coordinates.")
+    else:
+        require(packet["native_output"] is None, "Semantic mode cannot claim pixel-locked exports.")
+    if not review:
+        return
+    if packet.get("geometry_required") is True:
+        errors = validate_revision_geometry(packet.get("geometry_receipt"))
+        require(not errors, "; ".join(errors))
+    checks = packet.get("attribute_review")
+    require(isinstance(checks, dict) and checks.keys() == baseline.keys() and all(
+        isinstance(v, dict) and v.get("status") == "PASS" and isinstance(v.get("evidence"), str)
+        and v["evidence"].strip() for v in checks.values()),
+        "Review every retained and changed attribute with evidence.")
+    outputs = packet.get("outputs")
+    require(isinstance(outputs, dict) and outputs.keys() == targets.keys(),
+            "Missing or unexpected output files.")
+    seen = {source}
+    for name, record in outputs.items():
+        path = asset(record)
+        require(path not in seen, "Output paths must be distinct from each other and the source.")
+        seen.add(path)
+        with Image.open(path) as image:
+            require(list(image.size) == targets[name], f"Incorrect dimensions: {name}.")
+    if mode == "pixel_lock":
+        native = asset(packet.get("native_candidate"))
+        with Image.open(source) as original, Image.open(mask) as protected, Image.open(native) as candidate:
+            require(candidate.size == original.size, "Native candidate dimensions changed.")
+            diff = ImageChops.difference(original.convert("RGBA"), candidate.convert("RGBA"))
+            require(not any(ImageChops.multiply(channel, protected).getbbox() for channel in diff.split()),
+                    "Protected native pixels changed.")
+            output = asset(outputs[packet["native_output"]])
+            with Image.open(output) as exported:
+                expected = candidate.convert("RGBA").resize(exported.size, Image.Resampling.LANCZOS)
+                difference = ImageChops.difference(expected, exported.convert("RGBA"))
+                require(not any(channel.getbbox() for channel in difference.split()),
+                        "Protected export is not derived from the validated native candidate.")
+
+
+def write_avatar_studio(source, clip_path, output):
+    """Create a self-contained private editing surface, never a public release."""
+    import base64
+    from PIL import Image
+
+    source, clip_path, output = (Path(p).resolve() for p in (source, clip_path, output))
+    require(all(not p.is_relative_to(ROOT.resolve()) for p in (source, clip_path, output)),
+            "Private portrait, mask and studio must stay outside the public checkout.")
+    require(len({source, clip_path, output}) == 3, "Source, mask and output must be distinct.")
+    with Image.open(source) as image:
+        require(image.format in ("PNG", "JPEG", "WEBP") and image.width == image.height
+                and getattr(image, "n_frames", 1) == 1, "Provide a static square PNG, JPEG or WEBP.")
+        mime = Image.MIME[image.format]
+        image.verify()
+    clip = clip_path.read_text(encoding="utf-8").strip()
+    require(0 < len(clip) <= 100000 and clip[0] in "Mm"
+            and re.fullmatch(r"[MmZzLlHhVvCcSsQqTtAa0-9eE+., \t\r\n-]+", clip),
+            "Provide an SVG clipping path in the 1248-unit composition coordinates.")
+    source_uri = "data:" + mime + ";base64," + base64.b64encode(source.read_bytes()).decode("ascii")
+    document = AVATAR_STUDIO_TEMPLATE.replace("__SOURCE_JSON__", json.dumps(source_uri)).replace(
+        "__CLIP_JSON__", json.dumps(clip))
+    with output.open("x", encoding="utf-8", newline="\n") as file:
+        file.write(document)
+    return output
+
+
+AVATAR_STUDIO_TEMPLATE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Endeavor Everlasting — Avatar Studio</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#080f19;color:#e8f5fa;font:15px system-ui,sans-serif}header{padding:24px 30px;border-bottom:1px solid #263849}header h1{font-size:23px;margin:0 0 5px}header p{margin:0;color:#9bb4c3}main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;padding:24px;max-width:1300px;margin:auto}.stage{background:#050a10;border:1px solid #253443;border-radius:16px;display:grid;place-items:center;min-width:0;padding:12px}.stage svg{width:100%;max-height:78vh;display:block}aside{background:#101d2a;padding:20px;border:1px solid #283e50;border-radius:16px;align-self:start}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;color:#a6c3d1}label{display:block;margin:15px 0 5px}input[type=range]{width:100%;accent-color:#20ddeb}input[type=color]{width:100%;height:35px;border:0;background:transparent}input[type=checkbox]{accent-color:#20ddeb}input[type=file]{width:100%;color:#aac0cc}button{font:inherit;border:1px solid #3e6575;background:#172d3a;color:#e8f5fa;border-radius:8px;padding:10px 14px;cursor:pointer;width:100%;margin-top:9px}button.primary{background:#1bd8e8;color:#05212b;font-weight:700;border-color:#1bd8e8}.muted{font-size:12px;color:#9bb4c3;line-height:1.5}.status{padding:10px 0;color:#a0e7d3;font-size:12px}hr{border:0;border-top:1px solid #304354;margin:18px 0}details textarea{width:100%;height:100px;background:#09131d;color:#c3e5e8;border:1px solid #39536a}summary{cursor:pointer}@media(max-width:760px){main{grid-template-columns:1fr;padding:12px}header{padding:18px}.stage svg{max-height:none}}</style>
+<header><h1>Endeavor Everlasting · Avatar Studio</h1><p>Original portrait · continuous golden-ratio geometry · independently editable layers</p></header><main><div class="stage" id="stage"></div><aside><h2>Composition</h2><label><input type="checkbox" id="portrait" checked> Original portrait</label><label><input type="checkbox" id="network" checked> Network</label><label><input type="checkbox" id="wave" checked> Wave field</label><label><input type="checkbox" id="geometry" checked> Rim and spiral</label><label>Spiral radius <output id="radiusValue"></output></label><input type="range" id="radius" min="160" max="280" value="240"><label>Rim join angle <output id="angleValue"></output></label><input type="range" id="angle" min="-20" max="38" value="22"><label>Network opacity</label><input type="range" id="opacity" min="0" max="100" value="80"><label>Line weight</label><input type="range" id="weight" min="2" max="17" value="10"><label>Warm color</label><input type="color" id="warm" value="#ff9a25"><label>Cool color</label><input type="color" id="cool" value="#13e8ff"><hr><details><summary>Original portrait / clipping path</summary><p class="muted">The source remains embedded and unchanged. The clipping path is editable, non-destructive, and independent of the mathematical layers.</p><input type="file" id="source" accept="image/png,image/jpeg,image/webp"><label>Portrait clipping path</label><textarea id="clip"></textarea><button id="applyClip">Apply path</button></details><div class="status" id="status"></div><button class="primary" id="exportPng">Export 500 × 500 PNG</button><button id="exportSvg">Export editable SVG</button><button id="reset">Reset composition</button><p class="muted">Works offline. No upload or account changes. The source portrait is embedded in the SVG; keep private working files private.</p></aside></main>
+<script>
+const N=1248,C={x:620,y:599},R=565,phi=(1+Math.sqrt(5))/2,k=Math.log(phi)/(Math.PI/2),TAU=2*Math.PI;
+let source=__SOURCE_JSON__;
+const originalClip=__CLIP_JSON__;
+const $=id=>document.getElementById(id); $('clip').value=originalClip;let clipping=originalClip;
+const f=n=>Number(n.toFixed(6)),xy=p=>`${f(p.x)} ${f(p.y)}`;
+function geometry(angle,r){const a=angle*Math.PI/180, p={x:C.x+R*Math.cos(a),y:C.y+R*Math.sin(a)}, t={x:Math.sin(a),y:-Math.cos(a)};const s=-1, beta=Math.atan2(t.y,t.x)-Math.atan2(s,-k), center={x:p.x-r*Math.cos(beta),y:p.y-r*Math.sin(beta)};
+ const point=q=>{const v=r*Math.exp(-k*q),b=beta+s*q;return {x:center.x+v*Math.cos(b),y:center.y+v*Math.sin(b)}};
+ const derivative=q=>{const v=r*Math.exp(-k*q),b=beta+s*q;return{x:v*(-k*Math.cos(b)-s*Math.sin(b)),y:v*(-k*Math.sin(b)+s*Math.cos(b))}};
+ const middle={x:2*C.x-p.x,y:2*C.y-p.y};let path=`M ${xy(p)} A ${R} ${R} 0 1 0 ${xy(middle)} A ${R} ${R} 0 1 0 ${xy(p)}`;
+ const end=5*TAU, count=240,h=end/count;for(let i=0;i<count;i++){const q=i*h,a=point(q),b=point(q+h),d=derivative(q),e=derivative(q+h);path+=` C ${xy({x:a.x+d.x*h/3,y:a.y+d.y*h/3})} ${xy({x:b.x-e.x*h/3,y:b.y-e.y*h/3})} ${xy(b)}`};
+ const v=derivative(0),mag=Math.hypot(v.x,v.y),unit={x:v.x/mag,y:v.y/mag};return {path,point,join:p,center,tangent:t,spiralTangent:unit,joinError:Math.hypot(p.x-point(0).x,p.y-point(0).y),tangentError:Math.hypot(t.x-unit.x,t.y-unit.y),radii:[0,1,2,3,4].map(i=>r*Math.exp(-k*i*Math.PI/2))};}
+function rand(seed){let s=seed;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296}}
+function render(){const g=geometry(+$('angle').value,+$('radius').value),warm=$('warm').value,cool=$('cool').value,weight=+$('weight').value,op=+$('opacity').value/100;const rnd=rand(421);const nodes=[];for(let i=0;i<26;i++){const a=TAU*i/26;const r=R*(i%4===0?.99:.76+.18*rnd());nodes.push({x:C.x+r*Math.cos(a),y:C.y+r*Math.sin(a)})}for(let i=0;i<15;i++)nodes.push(g.point(i*Math.PI/3));let wires='',dots='',waves='';for(let i=0;i<nodes.length;i++){const a=nodes[i];for(let j=i+1;j<nodes.length;j++){const b=nodes[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<245&&d>45)wires+=`<path d="M ${xy(a)} L ${xy(b)}" stroke="url(#spectrum)" stroke-width="1.5" opacity="${f(.42+.35*rnd())}"/>`}dots+=`<circle cx="${f(a.x)}" cy="${f(a.y)}" r="${i%5===0?7:3}" fill="${a.x<C.x?warm:cool}"/>`}
+ for(let row=0;row<19;row++){let d='';for(let x=55;x<1194;x+=9){const y=180+row*10+76*Math.sin(x/185+row/9)+.10*(x-624);d+=(d?' L ':'M ')+`${x} ${f(y)}`}waves+=`<path d="${d}" stroke="url(#spectrum)" stroke-width="1.4" stroke-dasharray="1 8" stroke-linecap="round" opacity=".5"/>`;d='';for(let x=55;x<1194;x+=9){const y=1050-row*9+64*Math.sin(x/160+row/8);d+=(d?' L ':'M ')+`${x} ${f(y)}`}waves+=`<path d="${d}" stroke="url(#spectrum)" stroke-width="1.4" stroke-dasharray="1 8" stroke-linecap="round" opacity=".45"/>`}
+ const esc=s=>s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');const display=id=>$(id).checked?'':' display="none"';$('stage').innerHTML=`<svg id="art" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1248" height="1248" viewBox="-4 -25 1248 1248"><title>Endeavor Everlasting — Fibonacci avatar</title><defs><radialGradient id="background"><stop stop-color="#0e243a"/><stop offset="1" stop-color="#050a12"/></radialGradient><linearGradient id="spectrum" gradientUnits="userSpaceOnUse" x1="60" y1="600" x2="1188" y2="600"><stop stop-color="${warm}"/><stop offset=".47" stop-color="#ffecc8"/><stop offset=".61" stop-color="#a7f8ff"/><stop offset="1" stop-color="${cool}"/></linearGradient><clipPath id="disc"><circle cx="620" cy="599" r="552"/></clipPath><clipPath id="portrait-mask"><path d="${esc(clipping)}" transform="scale(1.0048076923076923)"/></clipPath><filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter></defs><g id="background-layer"><rect x="-4" y="-25" width="1248" height="1248" fill="#050a12"/><circle cx="620" cy="599" r="565" fill="url(#background)"/></g><g id="wave-layer"${display('wave')} clip-path="url(#disc)" fill="none">${waves}</g><g id="network-layer"${display('network')} clip-path="url(#disc)" opacity="${op}" fill="none">${wires}${dots}</g><g id="portrait-layer"${display('portrait')} clip-path="url(#disc)"><g clip-path="url(#portrait-mask)"><image href="${source}" x="0" y="0" width="1254" height="1254"/></g></g><g id="golden-geometry-layer"${display('geometry')} fill="none" stroke="url(#spectrum)" stroke-linejoin="round" stroke-linecap="round"><path d="${g.path}" stroke-width="${weight*2.5}" opacity=".65" filter="url(#glow)"/><path id="continuous-curve" d="${g.path}" stroke-width="${weight}"/></g></svg>`;
+ $('radiusValue').textContent=$('radius').value+' px';$('angleValue').textContent=$('angle').value+'°';const ratioError=Math.max(...g.radii.slice(1).map((r,i)=>Math.abs(r/g.radii[i]-1/phi)));$('status').textContent=`Continuous join · ratio ${(1/phi).toFixed(8)} · ${ratioError<1e-8?'geometry verified':'geometry error'}`;return g;}
+function serialized(){return new XMLSerializer().serializeToString($('art'))}function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('exportSvg').onclick=()=>save(new Blob([serialized()],{type:'image/svg+xml'}),'Endeavor-Fibonacci.svg');$('exportPng').onclick=async()=>{const img=new Image(),url=URL.createObjectURL(new Blob([serialized()],{type:'image/svg+xml'}));try{img.src=url;await img.decode();const c=document.createElement('canvas');c.width=c.height=500;c.getContext('2d').drawImage(img,0,0,500,500);c.toBlob(b=>save(b,'Endeavor-Fibonacci-500.png'),'image/png')}finally{URL.revokeObjectURL(url)}};
+for(const id of ['portrait','network','wave','geometry','radius','angle','opacity','weight','warm','cool'])$(id).addEventListener('input',render);$('applyClip').onclick=()=>{clipping=$('clip').value;render()};$('source').onchange=()=>{const file=$('source').files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{source=reader.result;render()};reader.readAsDataURL(file)};$('reset').onclick=()=>{for(const [id,v] of Object.entries({radius:240,angle:22,opacity:80,weight:10,warm:'#ff9a25',cool:'#13e8ff'}))$(id).value=v;for(const id of ['portrait','network','wave','geometry'])$(id).checked=true;clipping=originalClip;$('clip').value=clipping;render()};window.avatarGeometry=geometry;window.avatarSvg=serialized;render();
+</script></html>"""
+
+
 def verify_checkout(root, base):
     """Run release checks against one committed checkout."""
     head = git(root, "rev-parse", "HEAD").decode().strip()
@@ -565,6 +753,14 @@ def main():
     recover = sub.add_parser("restore")
     recover.add_argument("version")
     recover.add_argument("--apply", action="store_true")
+    revision = sub.add_parser("revision", help="Validate a private profile revision packet.")
+    revision.add_argument("packet", type=Path)
+    revision.add_argument("--authority", type=Path, required=True)
+    revision.add_argument("--review", action="store_true")
+    studio = sub.add_parser("avatar-studio", help="Build a private offline layered avatar editor.")
+    studio.add_argument("source", type=Path)
+    studio.add_argument("--clip-path", type=Path, required=True)
+    studio.add_argument("--output", type=Path, required=True)
     record = sub.add_parser("capture")
     record.add_argument("version")
     record.add_argument("--title", required=True)
@@ -583,6 +779,11 @@ def main():
             print(f"PASS: verified profile versions and active expression {selected['id']}")
         elif args.operation == "verify":
             verify_checkout(ROOT, args.base)
+        elif args.operation == "revision":
+            verify_revision(args.packet, authority_path=args.authority, review=args.review)
+            print("PASS: revision packet checks; visual approval remains independent.")
+        elif args.operation == "avatar-studio":
+            print(write_avatar_studio(args.source, args.clip_path, args.output))
         elif args.operation == "restore":
             print(restore(ROOT, args.version, args.apply))
         else:

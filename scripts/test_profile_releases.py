@@ -312,3 +312,156 @@ class ProfileReleaseTests(unittest.TestCase):
             urls[f"https://github.com{prefix}{ARCHIVES}/v02/assets/first-stitch.gif"] = b"stale"
             with self.assertRaisesRegex(ProfileCheckError, "differs"):
                 verify_archived_public(blocks, "v02", files)
+
+
+class PrivateRevisionTests(unittest.TestCase):
+    def test_revision_scope_and_output_controls(self):
+        from copy import deepcopy
+        from PIL import Image
+        from profile_release import verify_revision
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            def asset(name, size, color, mode="RGB"):
+                path = root / name
+                Image.new(mode, size, color).save(path)
+                return {"path": name, "sha256": sha256(path.read_bytes()).hexdigest()}
+            source = asset("source.png", (8, 8), "blue")
+            mask = asset("mask.png", (8, 8), 255, "L")
+            native = asset("native.png", (8, 8), "blue")
+            packet = {"schema_version": 1, "source": source, "source_inspected": True,
+                      "baseline": {"subject": "original", "light": "cool"},
+                      "requested_delta": {"light": "warm"},
+                      "proposed": {"subject": "original", "light": "warm"},
+                      "rejected_variants": ["different subject"], "preservation_mode": "semantic",
+                      "required_outputs": {"square": [8, 8], "wide": [16, 4]},
+                      "attribute_review": {k: {"status": "PASS", "evidence": "fixture"}
+                                           for k in ("subject", "light")},
+                      "outputs": {"square": asset("square.png", (8, 8), "blue"),
+                                  "wide": asset("wide.png", (16, 4), "orange")}}
+            packet.update(geometry_required=False, native_output=None)
+            path = root / "revision.json"
+            authority_path = root / "authority.json"
+            def authorize(data):
+                keys = ("schema_version", "baseline", "requested_delta", "rejected_variants",
+                        "required_outputs", "preservation_mode", "geometry_required", "native_output")
+                authority = {k: data[k] for k in keys}
+                authority["source_sha256"] = data["source"]["sha256"]
+                if data["preservation_mode"] == "pixel_lock":
+                    authority["mask_sha256"] = data["approved_mask"]["sha256"]
+                authority_path.write_text(json.dumps(authority), encoding="utf-8")
+            def run(data, review=True):
+                path.write_text(json.dumps(data), encoding="utf-8")
+                verify_revision(path, authority_path=authority_path, review=review)
+            authorize(packet)
+            run(packet, False)
+            run(packet)
+            for change in (
+                lambda p: p["proposed"].update(subject="replacement"),
+                lambda p: p["proposed"].pop("subject"),
+                lambda p: p["proposed"].update(extra="new"),
+                lambda p: p["proposed"].update(light="cool"),
+                lambda p: p.update(source_inspected=False),
+                lambda p: p.update(geometry_required=True),
+                lambda p: (p["baseline"].update(subject="replacement"), p["proposed"].update(subject="replacement")),
+                lambda p: p.update(rejected_variants=[]),
+                lambda p: p["source"].update(sha256="0" * 64),
+                lambda p: p.pop("rejected_variants"),
+                lambda p: p["attribute_review"].pop("subject"),
+                lambda p: p["attribute_review"]["subject"].update(status="UNPROVEN"),
+                lambda p: p["outputs"].update(wide=p["outputs"]["square"]),
+                lambda p: p["required_outputs"].update(wide=[4, 16]),
+                lambda p: p.update(preservation_mode="pixel_lock"),
+            ):
+                bad = deepcopy(packet)
+                change(bad)
+                with self.assertRaises((ValueError, OSError)):
+                    run(bad)
+            pixel = deepcopy(packet)
+            pixel.update(preservation_mode="pixel_lock", approved_mask=mask,
+                         mask_approved=True, native_candidate=native, native_output="square")
+            authorize(pixel)
+            run(pixel)
+            bad = deepcopy(pixel)
+            bad["outputs"]["square"] = asset("unrelated.png", (8, 8), "red")
+            with self.assertRaisesRegex(ValueError, "not derived"):
+                run(bad)
+            bad = deepcopy(pixel)
+            bad["approved_mask"] = asset("replacement-mask.png", (8, 8), 0, "L")
+            with self.assertRaisesRegex(ValueError, "not independently pinned"):
+                run(bad)
+            bad = deepcopy(pixel)
+            bad.update(preservation_mode="semantic", native_output=None)
+            with self.assertRaisesRegex(ValueError, "contradicts private authority"):
+                run(bad)
+            with self.assertRaisesRegex(ValueError, "separate private source"):
+                verify_revision(path, authority_path=path)
+            required = deepcopy(packet)
+            required["geometry_required"] = True
+            authorize(required)
+            with self.assertRaisesRegex(ValueError, "Missing geometry evidence"):
+                run(required)
+            authorize(pixel)
+            pixel["native_candidate"] = asset("changed.png", (8, 8), "red")
+            with self.assertRaisesRegex(ValueError, "Protected native pixels changed"):
+                run(pixel)
+
+    def test_geometry_receipt(self):
+        from math import sqrt
+        from profile_release import validate_revision_geometry
+        phi = (1 + sqrt(5)) / 2
+        receipt = {"quarter_turn_radii": [208 / phi**i for i in range(6)],
+                   "rim_end": [0, 1], "spiral_start": [0, 1],
+                   "rim_end_tangent": [1, 0], "spiral_start_tangent": [1, 0]}
+        self.assertFalse(validate_revision_geometry(receipt))
+        for delta in ({"quarter_turn_radii": [208] * 4}, {"spiral_start": [0, 2]},
+                      {"spiral_start_tangent": [0, 1]}, {"spiral_start_tangent": [2, 0]},
+                      {"quarter_turn_radii": None}, {"rim_end_tangent": [0, 0]}):
+            self.assertTrue(validate_revision_geometry(receipt | delta))
+        self.assertTrue(validate_revision_geometry(None))
+
+
+    def test_private_avatar_studio_preserves_source_and_never_overwrites(self):
+        import base64
+        from PIL import Image
+        from profile_release import write_avatar_studio
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, clip, output = (root / name for name in ("source.png", "clip.txt", "studio.html"))
+            Image.new("RGB", (16, 16), "#123456").save(source)
+            original = source.read_bytes()
+            mask = "M 10 10 L 1230 10 L 1230 1230 L 10 1230 Z"
+            clip.write_text(mask, encoding="utf-8")
+            self.assertEqual(write_avatar_studio(source, clip, output), output.resolve())
+            html = output.read_text(encoding="utf-8")
+            self.assertIn(base64.b64encode(original).decode("ascii"), html)
+            self.assertIn(json.dumps(mask), html)
+            self.assertNotIn("__SOURCE_JSON__", html)
+            self.assertNotIn("__CLIP_JSON__", html)
+            for layer in ("portrait-layer", "wave-layer", "network-layer", "golden-geometry-layer"):
+                self.assertIn(layer, html)
+            self.assertEqual(source.read_bytes(), original)
+            with self.assertRaises(FileExistsError):
+                write_avatar_studio(source, clip, output)
+            with self.assertRaisesRegex(ValueError, "distinct"):
+                write_avatar_studio(source, clip, source)
+            clip.write_text("M 0 0 <script>alert(1)</script>", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SVG clipping path"):
+                write_avatar_studio(source, clip, root / "bad.html")
+            self.assertFalse((root / "bad.html").exists())
+
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the SVG geometry test")
+    def test_avatar_studio_constructs_connected_golden_geometry(self):
+        from profile_release import AVATAR_STUDIO_TEMPLATE
+        start = AVATAR_STUDIO_TEMPLATE.index("const f=n=>")
+        end = AVATAR_STUDIO_TEMPLATE.index("function rand(seed)")
+        constants = "const C={x:620,y:599},R=565,phi=(1+Math.sqrt(5))/2,k=Math.log(phi)/(Math.PI/2),TAU=2*Math.PI;\n"
+        js = constants + AVATAR_STUDIO_TEMPLATE[start:end] + """
+for (const angle of [-20,0,22,38]) for (const radius of [160,240,280]) {
+    const g=geometry(angle,radius);
+    if (g.joinError>1e-8 || g.tangentError>1e-8 ||
+        g.radii.slice(1).some((r,i)=>Math.abs(r/g.radii[i]-1/phi)>1e-8) ||
+        !g.path.includes(" A ") || !g.path.includes(" C ")) process.exit(1);
+}
+"""
+        subprocess.run(["node", "--eval", js], check=True)
