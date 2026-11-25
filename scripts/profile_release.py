@@ -528,6 +528,75 @@ def format_status(data, history):
     return "\n".join(lines)
 
 
+def verify_revision(packet_path, *, review=False):
+    """Validate a private revision packet; never infer visual approval from a receipt."""
+    from PIL import Image, ImageChops
+
+    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    require(isinstance(packet, dict) and packet.get("schema_version") == 1,
+            "Unsupported profile revision packet.")
+
+    def asset(record):
+        require(isinstance(record, dict) and isinstance(record.get("path"), str)
+                and isinstance(record.get("sha256"), str) and DIGEST.fullmatch(record["sha256"]),
+                "Every asset needs a path and SHA-256.")
+        path = (packet_path.parent / record["path"]).resolve(strict=True)
+        require(path.is_file() and sha256(path.read_bytes()).hexdigest() == record["sha256"],
+                "Asset is missing or its hash differs.")
+        with Image.open(path) as image:
+            image.verify()
+        return path
+
+    source = asset(packet.get("source"))
+    require(packet.get("source_inspected") is True, "Inspect the actual source first.")
+    baseline, delta, proposed = (packet.get(k) for k in ("baseline", "requested_delta", "proposed"))
+    require(all(isinstance(x, dict) and x for x in (baseline, delta, proposed)),
+            "Provide the complete baseline, explicit delta and resolved proposed attributes.")
+    require(delta.keys() <= baseline.keys() and proposed == baseline | delta,
+            "Requested delta is unmapped, or protected attributes have drifted.")
+    rejected = packet.get("rejected_variants")
+    require(isinstance(rejected, list) and all(isinstance(x, str) and x.strip() for x in rejected),
+            "Record rejected variants or an explicit empty list.")
+    targets = packet.get("required_outputs")
+    require(isinstance(targets, dict) and targets and all(
+        isinstance(k, str) and k and isinstance(v, list) and len(v) == 2
+        and all(type(n) is int and n > 0 for n in v) for k, v in targets.items()),
+        "Declare independent output names and exact dimensions.")
+    mode = packet.get("preservation_mode")
+    require(mode in ("semantic", "pixel_lock"), "Declare the preservation mode explicitly.")
+    if mode == "pixel_lock":
+        mask = asset(packet.get("approved_mask"))
+        require(packet.get("mask_approved") is True, "Pixel lock requires an independently approved mask.")
+        with Image.open(source) as original, Image.open(mask) as protected:
+            require(protected.mode == "L" and protected.size == original.size
+                    and protected.getbbox() and not (set(protected.getdata()) - {0, 255}),
+                    "Protected mask must be nonempty binary grayscale in native coordinates.")
+    if not review:
+        return
+    checks = packet.get("attribute_review")
+    require(isinstance(checks, dict) and checks.keys() == baseline.keys() and all(
+        isinstance(v, dict) and v.get("status") == "PASS" and isinstance(v.get("evidence"), str)
+        and v["evidence"].strip() for v in checks.values()),
+        "Review every retained and changed attribute with evidence.")
+    outputs = packet.get("outputs")
+    require(isinstance(outputs, dict) and outputs.keys() == targets.keys(),
+            "Missing or unexpected output files.")
+    seen = {source}
+    for name, record in outputs.items():
+        path = asset(record)
+        require(path not in seen, "Output paths must be distinct from each other and the source.")
+        seen.add(path)
+        with Image.open(path) as image:
+            require(list(image.size) == targets[name], f"Incorrect dimensions: {name}.")
+    if mode == "pixel_lock":
+        native = asset(packet.get("native_candidate"))
+        with Image.open(source) as original, Image.open(mask) as protected, Image.open(native) as candidate:
+            require(candidate.size == original.size, "Native candidate dimensions changed.")
+            diff = ImageChops.difference(original.convert("RGBA"), candidate.convert("RGBA"))
+            require(not any(ImageChops.multiply(channel, protected).getbbox() for channel in diff.split()),
+                    "Protected native pixels changed.")
+
+
 def verify_checkout(root, base):
     """Run release checks against one committed checkout."""
     head = git(root, "rev-parse", "HEAD").decode().strip()
@@ -565,6 +634,9 @@ def main():
     recover = sub.add_parser("restore")
     recover.add_argument("version")
     recover.add_argument("--apply", action="store_true")
+    revision = sub.add_parser("revision", help="Validate a private profile revision packet.")
+    revision.add_argument("packet", type=Path)
+    revision.add_argument("--review", action="store_true")
     record = sub.add_parser("capture")
     record.add_argument("version")
     record.add_argument("--title", required=True)
@@ -583,6 +655,9 @@ def main():
             print(f"PASS: verified profile versions and active expression {selected['id']}")
         elif args.operation == "verify":
             verify_checkout(ROOT, args.base)
+        elif args.operation == "revision":
+            verify_revision(args.packet, review=args.review)
+            print("PASS: revision packet checks; visual approval remains independent.")
         elif args.operation == "restore":
             print(restore(ROOT, args.version, args.apply))
         else:
