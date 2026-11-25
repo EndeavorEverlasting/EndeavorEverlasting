@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -33,13 +34,11 @@ jobs:
           fi
           python "$script" --range "$BASE_SHA" "$HEAD_SHA"
       - name: Install GIF decoder
-        if: github.event_name != 'pull_request'
         run: python -m pip install 'Pillow>=11,<14'
       - name: Run the full profile verification
-        if: github.event_name != 'pull_request'
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           if [[ -n "$BASE_SHA" ]]; then
             python scripts/profile_release.py verify --base "$BASE_SHA"
