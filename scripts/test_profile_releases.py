@@ -339,10 +339,21 @@ class PrivateRevisionTests(unittest.TestCase):
                                            for k in ("subject", "light")},
                       "outputs": {"square": asset("square.png", (8, 8), "blue"),
                                   "wide": asset("wide.png", (16, 4), "orange")}}
+            packet.update(geometry_required=False, native_output=None)
             path = root / "revision.json"
+            authority_path = root / "authority.json"
+            def authorize(data):
+                keys = ("schema_version", "baseline", "requested_delta", "rejected_variants",
+                        "required_outputs", "preservation_mode", "geometry_required", "native_output")
+                authority = {k: data[k] for k in keys}
+                authority["source_sha256"] = data["source"]["sha256"]
+                if data["preservation_mode"] == "pixel_lock":
+                    authority["mask_sha256"] = data["approved_mask"]["sha256"]
+                authority_path.write_text(json.dumps(authority), encoding="utf-8")
             def run(data, review=True):
                 path.write_text(json.dumps(data), encoding="utf-8")
-                verify_revision(path, review=review)
+                verify_revision(path, authority_path=authority_path, review=review)
+            authorize(packet)
             run(packet, False)
             run(packet)
             for change in (
@@ -351,6 +362,9 @@ class PrivateRevisionTests(unittest.TestCase):
                 lambda p: p["proposed"].update(extra="new"),
                 lambda p: p["proposed"].update(light="cool"),
                 lambda p: p.update(source_inspected=False),
+                lambda p: p.update(geometry_required=True),
+                lambda p: (p["baseline"].update(subject="replacement"), p["proposed"].update(subject="replacement")),
+                lambda p: p.update(rejected_variants=[]),
                 lambda p: p["source"].update(sha256="0" * 64),
                 lambda p: p.pop("rejected_variants"),
                 lambda p: p["attribute_review"].pop("subject"),
@@ -365,8 +379,29 @@ class PrivateRevisionTests(unittest.TestCase):
                     run(bad)
             pixel = deepcopy(packet)
             pixel.update(preservation_mode="pixel_lock", approved_mask=mask,
-                         mask_approved=True, native_candidate=native)
+                         mask_approved=True, native_candidate=native, native_output="square")
+            authorize(pixel)
             run(pixel)
+            bad = deepcopy(pixel)
+            bad["outputs"]["square"] = asset("unrelated.png", (8, 8), "red")
+            with self.assertRaisesRegex(ValueError, "not derived"):
+                run(bad)
+            bad = deepcopy(pixel)
+            bad["approved_mask"] = asset("replacement-mask.png", (8, 8), 0, "L")
+            with self.assertRaisesRegex(ValueError, "not independently pinned"):
+                run(bad)
+            bad = deepcopy(pixel)
+            bad.update(preservation_mode="semantic", native_output=None)
+            with self.assertRaisesRegex(ValueError, "contradicts private authority"):
+                run(bad)
+            with self.assertRaisesRegex(ValueError, "separate private source"):
+                verify_revision(path, authority_path=path)
+            required = deepcopy(packet)
+            required["geometry_required"] = True
+            authorize(required)
+            with self.assertRaisesRegex(ValueError, "Missing geometry evidence"):
+                run(required)
+            authorize(pixel)
             pixel["native_candidate"] = asset("changed.png", (8, 8), "red")
             with self.assertRaisesRegex(ValueError, "Protected native pixels changed"):
                 run(pixel)
