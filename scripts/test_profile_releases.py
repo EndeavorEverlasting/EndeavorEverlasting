@@ -370,3 +370,17 @@ class PrivateRevisionTests(unittest.TestCase):
             pixel["native_candidate"] = asset("changed.png", (8, 8), "red")
             with self.assertRaisesRegex(ValueError, "Protected native pixels changed"):
                 run(pixel)
+
+    def test_geometry_receipt(self):
+        from math import sqrt
+        from profile_release import validate_revision_geometry
+        phi = (1 + sqrt(5)) / 2
+        receipt = {"quarter_turn_radii": [208 / phi**i for i in range(6)],
+                   "rim_end": [0, 1], "spiral_start": [0, 1],
+                   "rim_end_tangent": [1, 0], "spiral_start_tangent": [1, 0]}
+        self.assertFalse(validate_revision_geometry(receipt))
+        for delta in ({"quarter_turn_radii": [208] * 4}, {"spiral_start": [0, 2]},
+                      {"spiral_start_tangent": [0, 1]}, {"spiral_start_tangent": [2, 0]},
+                      {"quarter_turn_radii": None}, {"rim_end_tangent": [0, 0]}):
+            self.assertTrue(validate_revision_geometry(receipt | delta))
+        self.assertTrue(validate_revision_geometry(None))
