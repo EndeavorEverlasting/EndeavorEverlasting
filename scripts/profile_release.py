@@ -559,13 +559,30 @@ def validate_revision_geometry(g):
     return errors
 
 
-def verify_revision(packet_path, *, review=False):
+def verify_revision(packet_path, *, authority_path, review=False):
     """Validate a private revision packet; never infer visual approval from a receipt."""
     from PIL import Image, ImageChops
 
     packet = json.loads(packet_path.read_text(encoding="utf-8"))
     require(isinstance(packet, dict) and packet.get("schema_version") == 1,
             "Unsupported profile revision packet.")
+
+    require(authority_path.resolve() != packet_path.resolve(),
+            "Revision authority must be a separate private source.")
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    require(isinstance(authority, dict) and authority.get("schema_version") == 1,
+            "Unsupported revision authority.")
+    # The authority is recovered independently of the candidate from the private
+    # operator-approved source; this checks equality, not the approval itself.
+    fields = ("baseline", "requested_delta", "rejected_variants", "required_outputs",
+              "preservation_mode", "geometry_required", "native_output")
+    require(all(key in authority and key in packet and authority[key] == packet[key]
+                for key in fields), "Revision packet contradicts private authority.")
+    require(type(authority["geometry_required"]) is bool,
+            "Geometry requirement must be explicit.")
+    require(isinstance(packet.get("source"), dict)
+            and packet["source"].get("sha256") == authority.get("source_sha256"),
+            "Source differs from private authority.")
 
     def asset(record):
         require(isinstance(record, dict) and isinstance(record.get("path"), str)
@@ -576,6 +593,9 @@ def verify_revision(packet_path, *, review=False):
                 "Asset is missing or its hash differs.")
         with Image.open(path) as image:
             image.verify()
+        with Image.open(path) as image:
+            require(getattr(image, "n_frames", 1) == 1, "Expected a static image.")
+            image.load()
         return path
 
     source = asset(packet.get("source"))
@@ -596,12 +616,19 @@ def verify_revision(packet_path, *, review=False):
     mode = packet.get("preservation_mode")
     require(mode in ("semantic", "pixel_lock"), "Declare the preservation mode explicitly.")
     if mode == "pixel_lock":
+        require(isinstance(packet.get("approved_mask"), dict)
+                and isinstance(authority.get("mask_sha256"), str)
+                and packet["approved_mask"].get("sha256") == authority["mask_sha256"],
+                "Protected mask is not independently pinned.")
+        require(packet["native_output"] in targets, "Declare the protected native export name.")
         mask = asset(packet.get("approved_mask"))
         require(packet.get("mask_approved") is True, "Pixel lock requires an independently approved mask.")
         with Image.open(source) as original, Image.open(mask) as protected:
             require(protected.mode == "L" and protected.size == original.size
                     and protected.getbbox() and not (set(protected.getdata()) - {0, 255}),
                     "Protected mask must be nonempty binary grayscale in native coordinates.")
+    else:
+        require(packet["native_output"] is None, "Semantic mode cannot claim pixel-locked exports.")
     if not review:
         return
     if packet.get("geometry_required") is True:
@@ -629,6 +656,12 @@ def verify_revision(packet_path, *, review=False):
             diff = ImageChops.difference(original.convert("RGBA"), candidate.convert("RGBA"))
             require(not any(ImageChops.multiply(channel, protected).getbbox() for channel in diff.split()),
                     "Protected native pixels changed.")
+            output = asset(outputs[packet["native_output"]])
+            with Image.open(output) as exported:
+                expected = candidate.convert("RGBA").resize(exported.size, Image.Resampling.LANCZOS)
+                difference = ImageChops.difference(expected, exported.convert("RGBA"))
+                require(not any(channel.getbbox() for channel in difference.split()),
+                        "Protected export is not derived from the validated native candidate.")
 
 
 def verify_checkout(root, base):
@@ -670,6 +703,7 @@ def main():
     recover.add_argument("--apply", action="store_true")
     revision = sub.add_parser("revision", help="Validate a private profile revision packet.")
     revision.add_argument("packet", type=Path)
+    revision.add_argument("--authority", type=Path, required=True)
     revision.add_argument("--review", action="store_true")
     record = sub.add_parser("capture")
     record.add_argument("version")
@@ -690,7 +724,7 @@ def main():
         elif args.operation == "verify":
             verify_checkout(ROOT, args.base)
         elif args.operation == "revision":
-            verify_revision(args.packet, review=args.review)
+            verify_revision(args.packet, authority_path=args.authority, review=args.review)
             print("PASS: revision packet checks; visual approval remains independent.")
         elif args.operation == "restore":
             print(restore(ROOT, args.version, args.apply))
