@@ -664,6 +664,58 @@ def verify_revision(packet_path, *, authority_path, review=False):
                         "Protected export is not derived from the validated native candidate.")
 
 
+def write_avatar_studio(source, clip_path, output):
+    """Create a self-contained private editing surface, never a public release."""
+    import base64
+    from PIL import Image
+
+    source, clip_path, output = (Path(p).resolve() for p in (source, clip_path, output))
+    require(all(not p.is_relative_to(ROOT.resolve()) for p in (source, clip_path, output)),
+            "Private portrait, mask and studio must stay outside the public checkout.")
+    require(len({source, clip_path, output}) == 3, "Source, mask and output must be distinct.")
+    with Image.open(source) as image:
+        require(image.format in ("PNG", "JPEG", "WEBP") and image.width == image.height
+                and getattr(image, "n_frames", 1) == 1, "Provide a static square PNG, JPEG or WEBP.")
+        mime = Image.MIME[image.format]
+        image.verify()
+    clip = clip_path.read_text(encoding="utf-8").strip()
+    require(0 < len(clip) <= 100000 and clip[0] in "Mm"
+            and re.fullmatch(r"[MmZzLlHhVvCcSsQqTtAa0-9eE+., \\t\\r\\n-]+", clip),
+            "Provide an SVG clipping path in the 1248-unit composition coordinates.")
+    source_uri = "data:" + mime + ";base64," + base64.b64encode(source.read_bytes()).decode("ascii")
+    document = AVATAR_STUDIO_TEMPLATE.replace("__SOURCE_JSON__", json.dumps(source_uri)).replace(
+        "__CLIP_JSON__", json.dumps(clip))
+    with output.open("x", encoding="utf-8", newline="\\n") as file:
+        file.write(document)
+    return output
+
+
+AVATAR_STUDIO_TEMPLATE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Endeavor Everlasting — Avatar Studio</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#080f19;color:#e8f5fa;font:15px system-ui,sans-serif}header{padding:24px 30px;border-bottom:1px solid #263849}header h1{font-size:23px;margin:0 0 5px}header p{margin:0;color:#9bb4c3}main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;padding:24px;max-width:1300px;margin:auto}.stage{background:#050a10;border:1px solid #253443;border-radius:16px;display:grid;place-items:center;min-width:0;padding:12px}.stage svg{width:100%;max-height:78vh;display:block}aside{background:#101d2a;padding:20px;border:1px solid #283e50;border-radius:16px;align-self:start}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px;color:#a6c3d1}label{display:block;margin:15px 0 5px}input[type=range]{width:100%;accent-color:#20ddeb}input[type=color]{width:100%;height:35px;border:0;background:transparent}input[type=checkbox]{accent-color:#20ddeb}input[type=file]{width:100%;color:#aac0cc}button{font:inherit;border:1px solid #3e6575;background:#172d3a;color:#e8f5fa;border-radius:8px;padding:10px 14px;cursor:pointer;width:100%;margin-top:9px}button.primary{background:#1bd8e8;color:#05212b;font-weight:700;border-color:#1bd8e8}.muted{font-size:12px;color:#9bb4c3;line-height:1.5}.status{padding:10px 0;color:#a0e7d3;font-size:12px}hr{border:0;border-top:1px solid #304354;margin:18px 0}details textarea{width:100%;height:100px;background:#09131d;color:#c3e5e8;border:1px solid #39536a}summary{cursor:pointer}@media(max-width:760px){main{grid-template-columns:1fr;padding:12px}header{padding:18px}.stage svg{max-height:none}}</style>
+<header><h1>Endeavor Everlasting · Avatar Studio</h1><p>Original portrait · continuous golden-ratio geometry · independently editable layers</p></header><main><div class="stage" id="stage"></div><aside><h2>Composition</h2><label><input type="checkbox" id="portrait" checked> Original portrait</label><label><input type="checkbox" id="network" checked> Network</label><label><input type="checkbox" id="wave" checked> Wave field</label><label><input type="checkbox" id="geometry" checked> Rim and spiral</label><label>Spiral radius <output id="radiusValue"></output></label><input type="range" id="radius" min="160" max="280" value="240"><label>Rim join angle <output id="angleValue"></output></label><input type="range" id="angle" min="-20" max="38" value="22"><label>Network opacity</label><input type="range" id="opacity" min="0" max="100" value="80"><label>Line weight</label><input type="range" id="weight" min="2" max="17" value="10"><label>Warm color</label><input type="color" id="warm" value="#ff9a25"><label>Cool color</label><input type="color" id="cool" value="#13e8ff"><hr><details><summary>Original portrait / clipping path</summary><p class="muted">The source remains embedded and unchanged. The clipping path is editable, non-destructive, and independent of the mathematical layers.</p><input type="file" id="source" accept="image/png,image/jpeg,image/webp"><label>Portrait clipping path</label><textarea id="clip"></textarea><button id="applyClip">Apply path</button></details><div class="status" id="status"></div><button class="primary" id="exportPng">Export 500 × 500 PNG</button><button id="exportSvg">Export editable SVG</button><button id="reset">Reset composition</button><p class="muted">Works offline. No upload or account changes. The source portrait is embedded in the SVG; keep private working files private.</p></aside></main>
+<script>
+const N=1248,C={x:620,y:599},R=565,phi=(1+Math.sqrt(5))/2,k=Math.log(phi)/(Math.PI/2),TAU=2*Math.PI;
+let source=__SOURCE_JSON__;
+const originalClip=__CLIP_JSON__;
+const $=id=>document.getElementById(id); $('clip').value=originalClip;let clipping=originalClip;
+const f=n=>Number(n.toFixed(6)),xy=p=>`${f(p.x)} ${f(p.y)}`;
+function geometry(angle,r){const a=angle*Math.PI/180, p={x:C.x+R*Math.cos(a),y:C.y+R*Math.sin(a)}, t={x:Math.sin(a),y:-Math.cos(a)};const s=-1, beta=Math.atan2(t.y,t.x)-Math.atan2(s,-k), center={x:p.x-r*Math.cos(beta),y:p.y-r*Math.sin(beta)};
+ const point=q=>{const v=r*Math.exp(-k*q),b=beta+s*q;return {x:center.x+v*Math.cos(b),y:center.y+v*Math.sin(b)}};
+ const derivative=q=>{const v=r*Math.exp(-k*q),b=beta+s*q;return{x:v*(-k*Math.cos(b)-s*Math.sin(b)),y:v*(-k*Math.sin(b)+s*Math.cos(b))}};
+ const middle={x:2*C.x-p.x,y:2*C.y-p.y};let path=`M ${xy(p)} A ${R} ${R} 0 1 0 ${xy(middle)} A ${R} ${R} 0 1 0 ${xy(p)}`;
+ const end=5*TAU, count=240,h=end/count;for(let i=0;i<count;i++){const q=i*h,a=point(q),b=point(q+h),d=derivative(q),e=derivative(q+h);path+=` C ${xy({x:a.x+d.x*h/3,y:a.y+d.y*h/3})} ${xy({x:b.x-e.x*h/3,y:b.y-e.y*h/3})} ${xy(b)}`};
+ const v=derivative(0),mag=Math.hypot(v.x,v.y),unit={x:v.x/mag,y:v.y/mag};return {path,point,join:p,center,tangent:t,spiralTangent:unit,joinError:Math.hypot(p.x-point(0).x,p.y-point(0).y),tangentError:Math.hypot(t.x-unit.x,t.y-unit.y),radii:[0,1,2,3,4].map(i=>r*Math.exp(-k*i*Math.PI/2))};}
+function rand(seed){let s=seed;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296}}
+function render(){const g=geometry(+$('angle').value,+$('radius').value),warm=$('warm').value,cool=$('cool').value,weight=+$('weight').value,op=+$('opacity').value/100;const rnd=rand(421);const nodes=[];for(let i=0;i<26;i++){const a=TAU*i/26;const r=R*(i%4===0?.99:.76+.18*rnd());nodes.push({x:C.x+r*Math.cos(a),y:C.y+r*Math.sin(a)})}for(let i=0;i<15;i++)nodes.push(g.point(i*Math.PI/3));let wires='',dots='',waves='';for(let i=0;i<nodes.length;i++){const a=nodes[i];for(let j=i+1;j<nodes.length;j++){const b=nodes[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<245&&d>45)wires+=`<path d="M ${xy(a)} L ${xy(b)}" stroke="url(#spectrum)" stroke-width="1.5" opacity="${f(.42+.35*rnd())}"/>`}dots+=`<circle cx="${f(a.x)}" cy="${f(a.y)}" r="${i%5===0?7:3}" fill="${a.x<C.x?warm:cool}"/>`}
+ for(let row=0;row<19;row++){let d='';for(let x=55;x<1194;x+=9){const y=180+row*10+76*Math.sin(x/185+row/9)+.10*(x-624);d+=(d?' L ':'M ')+`${x} ${f(y)}`}waves+=`<path d="${d}" stroke="url(#spectrum)" stroke-width="1.4" stroke-dasharray="1 8" stroke-linecap="round" opacity=".5"/>`;d='';for(let x=55;x<1194;x+=9){const y=1050-row*9+64*Math.sin(x/160+row/8);d+=(d?' L ':'M ')+`${x} ${f(y)}`}waves+=`<path d="${d}" stroke="url(#spectrum)" stroke-width="1.4" stroke-dasharray="1 8" stroke-linecap="round" opacity=".45"/>`}
+ const esc=s=>s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');const display=id=>$(id).checked?'':' display="none"';$('stage').innerHTML=`<svg id="art" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1248" height="1248" viewBox="-4 -25 1248 1248"><title>Endeavor Everlasting — Fibonacci avatar</title><defs><radialGradient id="background"><stop stop-color="#0e243a"/><stop offset="1" stop-color="#050a12"/></radialGradient><linearGradient id="spectrum" gradientUnits="userSpaceOnUse" x1="60" y1="600" x2="1188" y2="600"><stop stop-color="${warm}"/><stop offset=".47" stop-color="#ffecc8"/><stop offset=".61" stop-color="#a7f8ff"/><stop offset="1" stop-color="${cool}"/></linearGradient><clipPath id="disc"><circle cx="620" cy="599" r="552"/></clipPath><clipPath id="portrait-mask"><path d="${esc(clipping)}" transform="scale(1.0048076923076923)"/></clipPath><filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter></defs><g id="background-layer"><rect x="-4" y="-25" width="1248" height="1248" fill="#050a12"/><circle cx="620" cy="599" r="565" fill="url(#background)"/></g><g id="wave-layer"${display('wave')} clip-path="url(#disc)" fill="none">${waves}</g><g id="network-layer"${display('network')} clip-path="url(#disc)" opacity="${op}" fill="none">${wires}${dots}</g><g id="portrait-layer"${display('portrait')} clip-path="url(#disc)"><g clip-path="url(#portrait-mask)"><image href="${source}" x="0" y="0" width="1254" height="1254"/></g></g><g id="golden-geometry-layer"${display('geometry')} fill="none" stroke="url(#spectrum)" stroke-linejoin="round" stroke-linecap="round"><path d="${g.path}" stroke-width="${weight*2.5}" opacity=".65" filter="url(#glow)"/><path id="continuous-curve" d="${g.path}" stroke-width="${weight}"/></g></svg>`;
+ $('radiusValue').textContent=$('radius').value+' px';$('angleValue').textContent=$('angle').value+'°';const ratioError=Math.max(...g.radii.slice(1).map((r,i)=>Math.abs(r/g.radii[i]-1/phi)));$('status').textContent=`Continuous join · ratio ${(1/phi).toFixed(8)} · ${ratioError<1e-8?'geometry verified':'geometry error'}`;return g;}
+function serialized(){return new XMLSerializer().serializeToString($('art'))}function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('exportSvg').onclick=()=>save(new Blob([serialized()],{type:'image/svg+xml'}),'Endeavor-Fibonacci.svg');$('exportPng').onclick=async()=>{const img=new Image(),url=URL.createObjectURL(new Blob([serialized()],{type:'image/svg+xml'}));try{img.src=url;await img.decode();const c=document.createElement('canvas');c.width=c.height=500;c.getContext('2d').drawImage(img,0,0,500,500);c.toBlob(b=>save(b,'Endeavor-Fibonacci-500.png'),'image/png')}finally{URL.revokeObjectURL(url)}};
+for(const id of ['portrait','network','wave','geometry','radius','angle','opacity','weight','warm','cool'])$(id).addEventListener('input',render);$('applyClip').onclick=()=>{clipping=$('clip').value;render()};$('source').onchange=()=>{const file=$('source').files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{source=reader.result;render()};reader.readAsDataURL(file)};$('reset').onclick=()=>{for(const [id,v] of Object.entries({radius:240,angle:22,opacity:80,weight:10,warm:'#ff9a25',cool:'#13e8ff'}))$(id).value=v;for(const id of ['portrait','network','wave','geometry'])$(id).checked=true;clipping=originalClip;$('clip').value=clipping;render()};window.avatarGeometry=geometry;window.avatarSvg=serialized;render();
+</script></html>"""
+
+
 def verify_checkout(root, base):
     """Run release checks against one committed checkout."""
     head = git(root, "rev-parse", "HEAD").decode().strip()
@@ -705,6 +757,10 @@ def main():
     revision.add_argument("packet", type=Path)
     revision.add_argument("--authority", type=Path, required=True)
     revision.add_argument("--review", action="store_true")
+    studio = sub.add_parser("avatar-studio", help="Build a private offline layered avatar editor.")
+    studio.add_argument("source", type=Path)
+    studio.add_argument("--clip-path", type=Path, required=True)
+    studio.add_argument("--output", type=Path, required=True)
     record = sub.add_parser("capture")
     record.add_argument("version")
     record.add_argument("--title", required=True)
@@ -726,6 +782,8 @@ def main():
         elif args.operation == "revision":
             verify_revision(args.packet, authority_path=args.authority, review=args.review)
             print("PASS: revision packet checks; visual approval remains independent.")
+        elif args.operation == "avatar-studio":
+            print(write_avatar_studio(args.source, args.clip_path, args.output))
         elif args.operation == "restore":
             print(restore(ROOT, args.version, args.apply))
         else:
