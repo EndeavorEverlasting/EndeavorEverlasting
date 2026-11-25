@@ -680,12 +680,12 @@ def write_avatar_studio(source, clip_path, output):
         image.verify()
     clip = clip_path.read_text(encoding="utf-8").strip()
     require(0 < len(clip) <= 100000 and clip[0] in "Mm"
-            and re.fullmatch(r"[MmZzLlHhVvCcSsQqTtAa0-9eE+., \\t\\r\\n-]+", clip),
+            and re.fullmatch(r"[MmZzLlHhVvCcSsQqTtAa0-9eE+., \t\r\n-]+", clip),
             "Provide an SVG clipping path in the 1248-unit composition coordinates.")
     source_uri = "data:" + mime + ";base64," + base64.b64encode(source.read_bytes()).decode("ascii")
     document = AVATAR_STUDIO_TEMPLATE.replace("__SOURCE_JSON__", json.dumps(source_uri)).replace(
         "__CLIP_JSON__", json.dumps(clip))
-    with output.open("x", encoding="utf-8", newline="\\n") as file:
+    with output.open("x", encoding="utf-8", newline="\n") as file:
         file.write(document)
     return output
 
