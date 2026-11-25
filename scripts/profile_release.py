@@ -528,6 +528,37 @@ def format_status(data, history):
     return "\n".join(lines)
 
 
+def validate_revision_geometry(g):
+    import math
+    PHI = (1 + math.sqrt(5)) / 2
+    TOL = 1e-6
+    if not isinstance(g, dict):
+        return ["Missing geometry evidence"]
+    errors = []
+    radii = g.get("quarter_turn_radii", [])
+    if not isinstance(radii, list) or len(radii) < 4 or any(type(r) not in (float, int) or not math.isfinite(r) or r <= 0 for r in radii):
+        errors.append("Need at least four finite positive measured quarter-turn radii")
+    elif any(abs(b/a - 1/PHI) > TOL for a, b in zip(radii, radii[1:])):
+        errors.append("Inward quarter-turn ratio is not 1/phi")
+    def vec(key):
+        v = g.get(key, [])
+        if not isinstance(v, list) or len(v) != 2 or any(type(x) not in (float, int) or not math.isfinite(x) for x in v):
+            raise ValueError(key)
+        return v
+    try:
+        a, b = vec("rim_end"), vec("spiral_start")
+        if math.dist(a, b) > TOL:
+            errors.append("Rim-to-spiral join is disconnected")
+        a, b = vec("rim_end_tangent"), vec("spiral_start_tangent")
+        if min(math.hypot(*a), math.hypot(*b)) <= TOL:
+            errors.append("Join tangents must be nonzero")
+        elif math.dist(a, b) > TOL * max(1, math.hypot(*a), math.hypot(*b)):
+            errors.append("Join derivatives differ: not C1 in declared parameterization")
+    except (ValueError, TypeError):
+        errors.append("Missing or malformed join evidence")
+    return errors
+
+
 def verify_revision(packet_path, *, review=False):
     """Validate a private revision packet; never infer visual approval from a receipt."""
     from PIL import Image, ImageChops
@@ -573,6 +604,9 @@ def verify_revision(packet_path, *, review=False):
                     "Protected mask must be nonempty binary grayscale in native coordinates.")
     if not review:
         return
+    if packet.get("geometry_required") is True:
+        errors = validate_revision_geometry(packet.get("geometry_receipt"))
+        require(not errors, "; ".join(errors))
     checks = packet.get("attribute_review")
     require(isinstance(checks, dict) and checks.keys() == baseline.keys() and all(
         isinstance(v, dict) and v.get("status") == "PASS" and isinstance(v.get("evidence"), str)
