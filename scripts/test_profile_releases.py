@@ -312,3 +312,61 @@ class ProfileReleaseTests(unittest.TestCase):
             urls[f"https://github.com{prefix}{ARCHIVES}/v02/assets/first-stitch.gif"] = b"stale"
             with self.assertRaisesRegex(ProfileCheckError, "differs"):
                 verify_archived_public(blocks, "v02", files)
+
+
+class PrivateRevisionTests(unittest.TestCase):
+    def test_revision_scope_and_output_controls(self):
+        from copy import deepcopy
+        from PIL import Image
+        from profile_release import verify_revision
+
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            def asset(name, size, color, mode="RGB"):
+                path = root / name
+                Image.new(mode, size, color).save(path)
+                return {"path": name, "sha256": sha256(path.read_bytes()).hexdigest()}
+            source = asset("source.png", (8, 8), "blue")
+            mask = asset("mask.png", (8, 8), 255, "L")
+            native = asset("native.png", (8, 8), "blue")
+            packet = {"schema_version": 1, "source": source, "source_inspected": True,
+                      "baseline": {"subject": "original", "light": "cool"},
+                      "requested_delta": {"light": "warm"},
+                      "proposed": {"subject": "original", "light": "warm"},
+                      "rejected_variants": ["different subject"], "preservation_mode": "semantic",
+                      "required_outputs": {"square": [8, 8], "wide": [16, 4]},
+                      "attribute_review": {k: {"status": "PASS", "evidence": "fixture"}
+                                           for k in ("subject", "light")},
+                      "outputs": {"square": asset("square.png", (8, 8), "blue"),
+                                  "wide": asset("wide.png", (16, 4), "orange")}}
+            path = root / "revision.json"
+            def run(data, review=True):
+                path.write_text(json.dumps(data), encoding="utf-8")
+                verify_revision(path, review=review)
+            run(packet, False)
+            run(packet)
+            for change in (
+                lambda p: p["proposed"].update(subject="replacement"),
+                lambda p: p["proposed"].pop("subject"),
+                lambda p: p["proposed"].update(extra="new"),
+                lambda p: p["proposed"].update(light="cool"),
+                lambda p: p.update(source_inspected=False),
+                lambda p: p["source"].update(sha256="0" * 64),
+                lambda p: p.pop("rejected_variants"),
+                lambda p: p["attribute_review"].pop("subject"),
+                lambda p: p["attribute_review"]["subject"].update(status="UNPROVEN"),
+                lambda p: p["outputs"].update(wide=p["outputs"]["square"]),
+                lambda p: p["required_outputs"].update(wide=[4, 16]),
+                lambda p: p.update(preservation_mode="pixel_lock"),
+            ):
+                bad = deepcopy(packet)
+                change(bad)
+                with self.assertRaises((ValueError, OSError)):
+                    run(bad)
+            pixel = deepcopy(packet)
+            pixel.update(preservation_mode="pixel_lock", approved_mask=mask,
+                         mask_approved=True, native_candidate=native)
+            run(pixel)
+            pixel["native_candidate"] = asset("changed.png", (8, 8), "red")
+            with self.assertRaisesRegex(ValueError, "Protected native pixels changed"):
+                run(pixel)
