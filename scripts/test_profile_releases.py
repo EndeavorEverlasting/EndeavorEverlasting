@@ -419,3 +419,49 @@ class PrivateRevisionTests(unittest.TestCase):
                       {"quarter_turn_radii": None}, {"rim_end_tangent": [0, 0]}):
             self.assertTrue(validate_revision_geometry(receipt | delta))
         self.assertTrue(validate_revision_geometry(None))
+
+
+    def test_private_avatar_studio_preserves_source_and_never_overwrites(self):
+        import base64
+        from PIL import Image
+        from profile_release import write_avatar_studio
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, clip, output = (root / name for name in ("source.png", "clip.txt", "studio.html"))
+            Image.new("RGB", (16, 16), "#123456").save(source)
+            original = source.read_bytes()
+            mask = "M 10 10 L 1230 10 L 1230 1230 L 10 1230 Z"
+            clip.write_text(mask, encoding="utf-8")
+            self.assertEqual(write_avatar_studio(source, clip, output), output.resolve())
+            html = output.read_text(encoding="utf-8")
+            self.assertIn(base64.b64encode(original).decode("ascii"), html)
+            self.assertIn(json.dumps(mask), html)
+            self.assertNotIn("__SOURCE_JSON__", html)
+            self.assertNotIn("__CLIP_JSON__", html)
+            for layer in ("portrait-layer", "wave-layer", "network-layer", "golden-geometry-layer"):
+                self.assertIn(layer, html)
+            self.assertEqual(source.read_bytes(), original)
+            with self.assertRaises(FileExistsError):
+                write_avatar_studio(source, clip, output)
+            with self.assertRaisesRegex(ValueError, "distinct"):
+                write_avatar_studio(source, clip, source)
+            clip.write_text("M 0 0 <script>alert(1)</script>", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SVG clipping path"):
+                write_avatar_studio(source, clip, root / "bad.html")
+            self.assertFalse((root / "bad.html").exists())
+
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the SVG geometry test")
+    def test_avatar_studio_constructs_connected_golden_geometry(self):
+        from profile_release import AVATAR_STUDIO_TEMPLATE
+        start = AVATAR_STUDIO_TEMPLATE.index("const f=n=>")
+        end = AVATAR_STUDIO_TEMPLATE.index("function rand(seed)")
+        constants = "const C={x:620,y:599},R=565,phi=(1+Math.sqrt(5))/2,k=Math.log(phi)/(Math.PI/2),TAU=2*Math.PI;\n"
+        js = constants + AVATAR_STUDIO_TEMPLATE[start:end] + """
+for (const angle of [-20,0,22,38]) for (const radius of [160,240,280]) {
+    const g=geometry(angle,radius);
+    if (g.joinError>1e-8 || g.tangentError>1e-8 ||
+        g.radii.slice(1).some((r,i)=>Math.abs(r/g.radii[i]-1/phi)>1e-8) ||
+        !g.path.includes(" A ") || !g.path.includes(" C ")) process.exit(1);
+}
+"""
+        subprocess.run(["node", "--eval", js], check=True)
